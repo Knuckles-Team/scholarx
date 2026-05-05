@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scholarx"
+version = "0.2.0"
+description = "Universal Research Paper API — single entry point for arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF, and Semantic Scholar"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11, <3.14"
+authors = [{ name = "Audel Rouhi", email = "knucklessg1@gmail.com" }]
+dependencies = [
+    "agent-utilities>=0.3.0",
+    "httpx>=0.27",
+    "python-dotenv",
+    "Levenshtein>=0.26",
+    "pypdf>=5.0",
+]
+
+[project.optional-dependencies]
+mcp = ["agent-utilities[mcp]>=0.3.0"]
+agent = ["agent-utilities[agent,logfire]>=0.3.0"]
+all = ["scholarx[mcp,agent]"]
+test = ["pytest", "pytest-asyncio", "respx"]
+
+[project.scripts]
+scholarx-mcp = "scholarx.mcp_server:mcp_server"
+scholarx-agent = "scholarx.agent_server:agent_server"
+
+[tool.setuptools.packages.find]
+include = ["scholarx*"]
+
+[tool.setuptools.package-data]
+scholarx = ["*.json", "*.md", "prompts/**"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E402", "B008", "E501"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
+[tool.uv.sources]
+agent-utilities = { path = "../../agent-utilities", editable = true }
+
+[dependency-groups]
+dev = [
+    "pytest-timeout>=2.4.0",
+]

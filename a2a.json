@@ -1,0 +1,22 @@
+{
+  "name": "scholarx-agent",
+  "type": "agent",
+  "version": "0.1.0",
+  "description": "Universal research paper discovery and analysis agent",
+  "url": "https://github.com/user/scholarx/tree/main",
+  "license": "MIT",
+  "capabilities": [
+    {
+      "id": "run_graph_flow",
+      "name": "Graph Flow Execution",
+      "description": "Execute a workflow through the agent's graph orchestration engine"
+    }
+  ],
+  "tools": [
+    {
+      "id": "graph-flow",
+      "type": "flow",
+      "description": "Run complex multi-step research workflows via Pydantic-Graph"
+    }
+  ]
+}

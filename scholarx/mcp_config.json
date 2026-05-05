@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "scholarx": {
+      "command": "scholarx-mcp",
+      "args": ["--transport", "stdio"],
+      "env": {
+        "SEARCHTOOL": "True",
+        "DISCOVERYTOOL": "True",
+        "STORAGETOOL": "True",
+        "OSF_TOKEN": "${OSF_TOKEN}",
+        "S2_API_KEY": "${S2_API_KEY}",
+        "NCBI_API_KEY": "${NCBI_API_KEY}"
+      }
+    }
+  }
+}
