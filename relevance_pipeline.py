@@ -371,7 +371,6 @@ async def main():
     downloaded = 0
     failed = []
     for i, sp in enumerate(accepted, 1):
-        success = False
         for attempt in range(MAX_RETRIES):
             try:
                 # Rate limit: wait between downloads
@@ -383,7 +382,7 @@ async def main():
                 if path:
                     downloaded += 1
                     print(f"  ✅ [{i}/{len(accepted)}] Downloaded: {sp['paper'].title[:60]}...")
-                    success = True
+
                     break
                 else:
                     print(f"  ⚠️  [{i}/{len(accepted)}] No PDF URL: {sp['paper'].title[:60]}...")
