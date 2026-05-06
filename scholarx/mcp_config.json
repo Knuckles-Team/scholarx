@@ -1,15 +1,21 @@
 {
   "mcpServers": {
     "scholarx": {
-      "command": "scholarx-mcp",
-      "args": ["--transport", "stdio"],
+      "command": "uv",
+      "args": [
+        "run",
+        "scholarx-mcp"
+      ],
       "env": {
         "SEARCHTOOL": "True",
         "DISCOVERYTOOL": "True",
         "STORAGETOOL": "True",
         "OSF_TOKEN": "${OSF_TOKEN}",
         "S2_API_KEY": "${S2_API_KEY}",
-        "NCBI_API_KEY": "${NCBI_API_KEY}"
+        "NCBI_API_KEY": "${NCBI_API_KEY}",
+        "AGENT_DESCRIPTION": "<YOUR_AGENT_DESCRIPTION>",
+        "AGENT_SYSTEM_PROMPT": "<YOUR_AGENT_SYSTEM_PROMPT>",
+        "DEFAULT_AGENT_NAME": "<YOUR_DEFAULT_AGENT_NAME>"
       }
     }
   }

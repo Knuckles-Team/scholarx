@@ -25,7 +25,7 @@
 
 **Universal Research Paper API** — a single entry point for querying, downloading, and ingesting research papers from all major preprint and academic repositories.
 
-Version: 0.2.0
+Version: 0.3.0
 
 ## Overview
 
@@ -231,3 +231,60 @@ Custom watchlists can be added via `MaintenanceCron.add_task()` or the `create_r
 ## License
 
 MIT
+
+
+## MCP Configuration Examples
+
+### 1. Standard IO (stdio) Deployment
+
+```json
+{
+  "mcpServers": {
+    "scholarx": {
+      "command": "uv",
+      "args": [
+        "run",
+        "scholarx-mcp"
+      ],
+      "env": {
+        "AGENT_DESCRIPTION": "<YOUR_AGENT_DESCRIPTION>",
+        "AGENT_SYSTEM_PROMPT": "<YOUR_AGENT_SYSTEM_PROMPT>",
+        "DEFAULT_AGENT_NAME": "<YOUR_DEFAULT_AGENT_NAME>",
+        "DISCOVERYTOOL": "True",
+        "SEARCHTOOL": "True",
+        "STORAGETOOL": "True"
+      }
+    }
+  }
+}
+```
+
+### 2. Streamable HTTP (SSE) Deployment
+
+```json
+{
+  "mcpServers": {
+    "scholarx": {
+      "command": "uv",
+      "args": [
+        "run",
+        "scholarx-mcp",
+        "--transport",
+        "http",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "env": {
+        "AGENT_DESCRIPTION": "<YOUR_AGENT_DESCRIPTION>",
+        "AGENT_SYSTEM_PROMPT": "<YOUR_AGENT_SYSTEM_PROMPT>",
+        "DEFAULT_AGENT_NAME": "<YOUR_DEFAULT_AGENT_NAME>",
+        "DISCOVERYTOOL": "True",
+        "SEARCHTOOL": "True",
+        "STORAGETOOL": "True"
+      }
+    }
+  }
+}
+```
