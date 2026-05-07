@@ -25,7 +25,7 @@
 
 **Universal Research Paper API** — a single entry point for querying, downloading, and ingesting research papers from all major preprint and academic repositories.
 
-Version: 0.4.1
+Version: 0.5.0
 
 ## Overview
 
@@ -101,6 +101,59 @@ async def main():
 
 asyncio.run(main())
 ```
+
+### CLI
+
+ScholarX includes a rich CLI with progress bars for paper discovery, relevance scoring, and PDF downloads.
+
+```bash
+# Scan for recent AI papers across 7 CS categories
+scholarx scan --query "artificial intelligence" --output-dir ./papers
+
+# Customize categories and result count
+scholarx scan --categories cs.AI,cs.LG,cs.CL --max-results 30 --output-dir ./papers
+
+# Use a custom relevance taxonomy
+scholarx scan --query "knowledge graphs" --taxonomy custom_taxonomy.json --output-dir ./papers
+
+# Auto-trigger comparative analysis on high-confidence papers
+scholarx scan --analyze --output-dir ./papers
+
+# Show stored paper library status
+scholarx status
+```
+
+#### Relevance Scoring
+
+The CLI scores each paper's abstract against a 9-domain weighted keyword taxonomy:
+
+| Domain | Weight | Focus |
+|--------|--------|-------|
+| Orchestration | 3.0 | Multi-agent, workflow, task decomposition |
+| Knowledge Graph | 3.0 | Ontology, OWL, entity relations, graph reasoning |
+| Planning & Reasoning | 2.5 | Chain-of-thought, MCTS, deliberation |
+| Memory & Retrieval | 2.5 | RAG, episodic memory, continual learning |
+| Tool Use | 2.0 | Function calling, MCP, code generation |
+| Evaluation & Safety | 2.0 | Benchmarks, red teaming, hallucination |
+| Swarm & Evolution | 2.0 | Evolutionary methods, stigmergy, biomimicry |
+| LLM Architecture | 1.5 | Transformers, MoE, distillation |
+| Human-AI | 1.0 | Human-in-the-loop, decision support |
+
+Papers are classified into three tiers:
+- **✅ Relevant** (score ≥ 3.0) — Direct value for the target domain
+- **🟡 Marginal** (score 1.0–2.9) — Potential indirect value
+- **❌ Irrelevant** (score < 1.0) — Filtered out
+
+#### Deduplication
+
+ScholarX prevents duplicate downloads through two mechanisms:
+
+1. **Cross-source deduplication** (`deduplication.py`): 3-tier matching removes duplicates when the same paper appears across multiple sources:
+   - **Tier 1**: DOI exact match
+   - **Tier 2**: Cross-ID mapping (arXiv ID ↔ S2 corpus ID via metadata)
+   - **Tier 3**: Normalized title + first-author last name (Levenshtein ≥ 0.90)
+
+2. **Storage deduplication** (`paper_storage.py`): Before downloading, `PaperStorage.download_paper()` checks if the paper ID's metadata hash already exists in `~/.scholarx/papers/.metadata/`. Already-downloaded papers are skipped instantly.
 
 ### MCP Server
 

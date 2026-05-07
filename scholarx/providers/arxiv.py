@@ -112,17 +112,23 @@ class ArxivProvider(PaperProvider):
     # ── Private Helpers ──────────────────────────────────────────────────
 
     def _build_query(self, query: SearchQuery) -> str:
-        """Build an arXiv API search query string."""
+        """Build an arXiv API search query string.
+
+        Categories are OR-joined (paper matches ANY category), then
+        AND-joined with the main query and author filter.
+        """
         parts = []
 
         # Main query across title, abstract, all fields
         if query.query:
             parts.append(f'all:"{query.query}"')
 
-        # Category filter
-        for cat in query.categories:
-            if cat.startswith("cs.") or cat.startswith("q-bio.") or "." in cat:
-                parts.append(f"cat:{cat}")
+        # Category filter — OR-joined so a paper in ANY listed category matches
+        cat_terms = [
+            f"cat:{cat}" for cat in query.categories if cat.startswith("cs.") or cat.startswith("q-bio.") or "." in cat
+        ]
+        if cat_terms:
+            parts.append(f"({' OR '.join(cat_terms)})")
 
         # Author filter
         if query.author:

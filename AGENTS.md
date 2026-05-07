@@ -1,10 +1,18 @@
 # AGENTS.md
 
+<!-- CONCEPT:SX-1.0 CLI — Rich terminal interface with progress bars, scan/status commands -->
+<!-- CONCEPT:SX-1.1 Relevance Scoring — 9-domain weighted keyword taxonomy for paper triage -->
+<!-- CONCEPT:SX-1.2 3-Tier Deduplication — DOI exact match → cross-ID mapping → fuzzy title+author (Levenshtein ≥ 0.90) -->
+<!-- CONCEPT:SX-1.3 Storage Dedup — PaperStorage skips already-downloaded PDFs via metadata hash lookup -->
+<!-- CONCEPT:SX-1.4 Auto-Analysis — --analyze flag chains comparative-analysis innovation extraction on relevant papers -->
+<!-- CONCEPT:SX-1.5 Category OR-Join — arXiv query builder uses OR-joined categories so a paper in ANY listed category matches -->
+
 ## Tech Stack & Architecture
 - Language/Version: Python 3.11+
-- Core Libraries: `agent-utilities`, `fastmcp`, `pydantic`, `httpx`
+- Core Libraries: `agent-utilities`, `fastmcp`, `pydantic`, `httpx`, `rich`
 - Key principles: Per-source rate limiting, 3-tier deduplication, full paper storage, existing KG node types.
 - Architecture:
+    - `cli.py`: Rich CLI with progress bars for scan/status commands (CONCEPT:SX-1.0).
     - `mcp_server.py`: MCP server entry point with 12 tools across 3 tag groups.
     - `agent_server.py`: Graph agent server for autonomous operation.
     - `api_client.py`: Unified client — fan-out to all providers, dedup, merge.
@@ -54,18 +62,27 @@ sequenceDiagram
 ```
 
 ## Commands (run these exactly)
+```bash
 # Installation
 pip install .[all]
 
 # Quality & Linting (run from project root)
 SKIP=no-commit-to-branch,uv-lock pre-commit run --all-files
 
-# Execution Commands
-# scholarx-mcp    → scholarx.mcp_server:mcp_server
-# scholarx-agent  → scholarx.agent_server:agent_server
+# CLI Commands (CONCEPT:SX-1.0)
+scholarx scan --query "multi-agent systems" --output-dir ./papers
+scholarx scan --categories cs.AI,cs.LG --max-results 50 --output-dir ./papers
+scholarx scan --analyze --output-dir ./papers  # Auto-trigger comparative analysis
+scholarx status                                 # Show stored paper library
+
+# Entry Points
+# scholarx       → scholarx.cli:cli
+# scholarx-mcp   → scholarx.mcp_server:mcp_server
+# scholarx-agent → scholarx.agent_server:agent_server
 
 # Testing
 pytest tests/ -v
+```
 
 ## Project Structure Quick Reference
 - MCP Entry Point → `mcp_server.py`
@@ -81,11 +98,12 @@ pytest tests/ -v
 ```text
 scholarx/
 ├── __init__.py              # Lazy imports (servicenow-api pattern)
-├── __main__.py              # CLI entry point
+├── __main__.py              # CLI entry point → cli.py
+├── cli.py                    # Rich CLI: scan, status, --analyze (CONCEPT:SX-1.0)
 ├── models.py                # Paper, PaperSource, SearchQuery, SearchResult
 ├── api_client.py            # ScholarXClient — unified entry point
-├── deduplication.py          # DOI → cross-ID → fuzzy title+author
-├── paper_storage.py          # Full PDF download + local storage
+├── deduplication.py          # 3-tier dedup: DOI → cross-ID → fuzzy title+author (CONCEPT:SX-1.2)
+├── paper_storage.py          # Full PDF download + local storage with dedup (CONCEPT:SX-1.3)
 ├── kg_integration.py         # ScholarXKGBridge → KBIngestionEngine
 ├── mcp_server.py             # 12 tools + 2 analysis prompts
 ├── agent_server.py           # Graph agent server
@@ -93,7 +111,7 @@ scholarx/
 ├── mcp_config.json           # MCP client config
 └── providers/
     ├── base.py               # Abstract PaperProvider + rate limiter
-    ├── arxiv.py              # arXiv Atom API
+    ├── arxiv.py              # arXiv Atom API (CONCEPT:SX-1.5 OR-joined categories)
     ├── pmc.py                # NCBI E-utilities
     ├── biorxiv.py            # bioRxiv + medRxiv API
     ├── osf.py                # OSF + PsyArXiv API

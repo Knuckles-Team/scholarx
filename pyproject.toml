@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scholarx"
-version = "0.4.1"
+version = "0.5.0"
 description = "Universal Research Paper API — single entry point for arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF, and Semantic Scholar"
 readme = "README.md"
 license = { text = "MIT" }
@@ -16,6 +16,7 @@ dependencies = [
     "python-dotenv",
     "Levenshtein>=0.26",
     "pypdf>=5.0",
+    "rich>=13.0",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +26,7 @@ all = ["scholarx[mcp,agent]"]
 test = ["pytest", "pytest-asyncio", "respx"]
 
 [project.scripts]
+scholarx = "scholarx.cli:cli"
 scholarx-mcp = "scholarx.mcp_server:mcp_server"
 scholarx-agent = "scholarx.agent_server:agent_server"
 

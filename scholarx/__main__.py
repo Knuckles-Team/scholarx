@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """ScholarX CLI entry point."""
 
-from scholarx.mcp_server import mcp_server
+from scholarx.cli import cli
 
 if __name__ == "__main__":
-    mcp_server()
+    cli()

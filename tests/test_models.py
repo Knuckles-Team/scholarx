@@ -1,4 +1,9 @@
-"""Tests for ScholarX models and deduplication."""
+"""Tests for ScholarX models and deduplication.
+
+Covers:
+- CONCEPT:SX-1.2 3-Tier Deduplication — DOI, cross-ID, and fuzzy title+author matching
+- CONCEPT:SX-1.3 Storage Dedup — Paper model normalization for dedup support
+"""
 
 from scholarx.models import Paper, PaperSource, SearchQuery, normalize_author, normalize_title
 from scholarx.deduplication import deduplicate_papers
