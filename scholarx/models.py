@@ -141,6 +141,10 @@ class Paper(BaseModel):
     pdf_url: str | None = None
     citation_count: int | None = None
     reference_count: int | None = None
+    announce_type: str | None = Field(
+        default=None,
+        description="RSS announce type: 'new', 'cross', or 'replace'. Set by RSS feed providers.",
+    )
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     # Computed deduplication fields
@@ -181,6 +185,8 @@ class SearchQuery(BaseModel):
     date_to: str | None = Field(default=None, description="End date filter (YYYY-MM-DD)")
     sort_by: str = Field(default="relevance", description="Sort order: 'relevance' or 'date'")
     author: str | None = Field(default=None, description="Author name filter")
+    title: str | None = Field(default=None, description="Title search filter")
+    paper_ids: list[str] | None = Field(default=None, description="List of specific paper IDs to search for")
 
 
 class SearchResult(BaseModel):

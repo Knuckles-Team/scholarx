@@ -60,7 +60,7 @@ class PaperProvider(ABC):
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Create a configured httpx.AsyncClient."""
-        headers: dict[str, str] = {"User-Agent": "ScholarX/0.1.0"}
+        headers: dict[str, str] = {"User-Agent": "ScholarX/0.1.0 (mailto:research@example.com)"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
         return httpx.AsyncClient(
@@ -79,18 +79,28 @@ class PaperProvider(ABC):
         json_data: dict | None = None,
         headers: dict | None = None,
     ) -> httpx.Response:
-        """Make a rate-limited HTTP request."""
-        await self._wait_for_rate_limit()
-        async with await self._get_client() as client:
-            response = await client.request(
-                method,
-                url,
-                params=params,
-                json=json_data,
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response
+        """Make a rate-limited HTTP request with retries for 429s."""
+        max_retries = 3
+        for attempt in range(max_retries):
+            await self._wait_for_rate_limit()
+            async with await self._get_client() as client:
+                response = await client.request(
+                    method,
+                    url,
+                    params=params,
+                    json=json_data,
+                    headers=headers,
+                )
+                if response.status_code == 429:
+                    retry_after = int(response.headers.get("Retry-After", 5 * (attempt + 1)))
+                    logger.warning(f"Rate limited (429). Retrying after {retry_after}s...")
+                    await asyncio.sleep(retry_after)
+                    continue
+                response.raise_for_status()
+                return response
+        # Fallback if we exhaust retries and it's still 429, it will raise or return
+        response.raise_for_status()
+        return response
 
     async def _get(self, url: str, params: dict | None = None, **kwargs) -> httpx.Response:
         """Convenience GET wrapper."""

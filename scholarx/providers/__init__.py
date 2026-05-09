@@ -6,6 +6,7 @@ from .base import PaperProvider
 from .biorxiv import BiorxivProvider
 from .osf import OSFProvider, PsyarxivProvider
 from .pmc import PMCProvider
+from .rss import RSSFeedProvider
 from .semantic_scholar import SemanticScholarProvider
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "BiorxivProvider",
     "OSFProvider",
     "PsyarxivProvider",
+    "RSSFeedProvider",
     "SemanticScholarProvider",
 ]

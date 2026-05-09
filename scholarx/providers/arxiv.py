@@ -50,22 +50,42 @@ class ArxivProvider(PaperProvider):
     source = PaperSource.ARXIV
 
     async def search(self, query: SearchQuery) -> list[Paper]:
-        """Search arXiv for papers."""
+        """Search arXiv for papers with pagination to respect max_results."""
         search_query = self._build_query(query)
-        params = {
-            "search_query": search_query,
-            "start": 0,
-            "max_results": min(query.max_results, self.config.max_results_per_query),
-            "sortBy": "relevance" if query.sort_by == "relevance" else "submittedDate",
-            "sortOrder": "descending",
-        }
+        all_papers = []
+        start = 0
+        max_per_page = self.config.max_results_per_query
 
-        try:
-            response = await self._get("/query", params=params)
-            return self._parse_atom_feed(response.text)
-        except Exception as e:
-            logger.error(f"arXiv search failed: {e}")
-            return []
+        while start < query.max_results:
+            fetch_count = min(query.max_results - start, max_per_page)
+            params = {
+                "start": start,
+                "max_results": fetch_count,
+                "sortBy": "relevance" if query.sort_by == "relevance" else "submittedDate",
+                "sortOrder": "descending",
+            }
+            if search_query:
+                params["search_query"] = search_query
+            if query.paper_ids:
+                clean_ids = [pid.replace("arXiv:", "").replace("arxiv:", "") for pid in query.paper_ids]
+                params["id_list"] = ",".join(clean_ids)
+
+            try:
+                response = await self._get("/query", params=params)
+                papers = self._parse_atom_feed(response.text)
+                if not papers:
+                    break
+                all_papers.extend(papers)
+                start += len(papers)
+
+                # If we got fewer than requested for this page, we've hit the end
+                if len(papers) < fetch_count:
+                    break
+            except Exception as e:
+                logger.error(f"arXiv search failed at start={start}: {e}")
+                break
+
+        return all_papers
 
     async def get_paper(self, paper_id: str) -> Paper | None:
         """Retrieve a single paper by arXiv ID."""
@@ -80,11 +100,43 @@ class ArxivProvider(PaperProvider):
             logger.error(f"arXiv get_paper failed for {paper_id}: {e}")
             return None
 
-    async def get_recent(self, categories: list[str] | None = None, days: int = 1) -> list[Paper]:
-        """Retrieve recently submitted papers from arXiv."""
+    async def get_recent(
+        self,
+        categories: list[str] | None = None,
+        days: int = 1,
+        *,
+        use_rss: bool = True,
+    ) -> list[Paper]:
+        """Retrieve recently submitted papers from arXiv.
+
+        Args:
+            categories: arXiv categories to search.
+            days: Number of days to look back (only used in search API mode).
+            use_rss: If True (default), use the RSS feed for accurate daily
+                papers. Falls back to the search API if RSS fails or days > 1.
+        """
         if not categories:
             categories = ["cs.AI", "cs.MA", "cs.SE", "cs.LG"]
 
+        # RSS mode: accurate "announced today" papers
+        if use_rss and days <= 1:
+            try:
+                from .rss import RSSFeedProvider
+
+                rss = RSSFeedProvider(pre_filter_categories=True)
+                result = await rss.fetch_arxiv_daily(categories)
+                if result.papers:
+                    logger.info(
+                        f"RSS feed: {len(result.papers)} papers "
+                        f"(new={result.new_count}, cross={result.cross_count}, "
+                        f"replace={result.replace_count})"
+                    )
+                    return result.papers
+                logger.warning("RSS feed returned no papers, falling back to search API")
+            except Exception as e:
+                logger.warning(f"RSS feed failed, falling back to search API: {e}")
+
+        # Search API fallback
         cat_query = " OR ".join(f"cat:{cat}" for cat in categories)
         date_from = (datetime.now(tz=UTC) - timedelta(days=days)).strftime("%Y%m%d")
         date_to = datetime.now(tz=UTC).strftime("%Y%m%d")
@@ -93,7 +145,7 @@ class ArxivProvider(PaperProvider):
         params = {
             "search_query": search_query,
             "start": 0,
-            "max_results": 50,
+            "max_results": 200,
             "sortBy": "submittedDate",
             "sortOrder": "descending",
         }
@@ -130,11 +182,15 @@ class ArxivProvider(PaperProvider):
         if cat_terms:
             parts.append(f"({' OR '.join(cat_terms)})")
 
+        # Title filter
+        if query.title:
+            parts.append(f'ti:"{query.title}"')
+
         # Author filter
         if query.author:
             parts.append(f'au:"{query.author}"')
 
-        return " AND ".join(parts) if parts else f"all:{query.query}"
+        return " AND ".join(parts) if parts else ""
 
     def _parse_atom_feed(self, xml_text: str) -> list[Paper]:
         """Parse arXiv Atom XML response into Paper objects."""

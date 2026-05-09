@@ -15,6 +15,7 @@ CORE_MODULES = [
     "scholarx.api_client",
     "scholarx.deduplication",
     "scholarx.paper_storage",
+    "scholarx.scanner",
 ]
 
 OPTIONAL_MODULES = {

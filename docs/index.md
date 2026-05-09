@@ -25,7 +25,7 @@
 
 **Universal Research Paper API** — a single entry point for querying, downloading, and ingesting research papers from all major preprint and academic repositories.
 
-Version: 0.6.0
+Version: 0.5.0
 
 ## Overview
 

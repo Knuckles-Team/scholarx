@@ -15,7 +15,7 @@ from pydantic import Field
 
 load_dotenv(find_dotenv())
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_SEARCHTOOL = to_boolean(os.getenv("SEARCHTOOL", "True"))
 DEFAULT_DISCOVERYTOOL = to_boolean(os.getenv("DISCOVERYTOOL", "True"))
 DEFAULT_STORAGETOOL = to_boolean(os.getenv("STORAGETOOL", "True"))
+DEFAULT_SCANNERTOOL = to_boolean(os.getenv("SCANNERTOOL", "True"))
 
 # ── Lazy client singleton ───────────────────────────────────────────────────
 _client = None
@@ -56,6 +57,8 @@ def register_search_tools(mcp):
         categories: str = Field(default="", description="Comma-separated category filters (e.g., cs.AI,cs.MA)"),
         max_results: int = Field(default=20, description="Maximum results", ge=1, le=100),
         sort_by: str = Field(default="relevance", description="Sort: 'relevance' or 'date'"),
+        title: str = Field(default="", description="Optional title to search for"),
+        paper_ids: str = Field(default="", description="Comma-separated paper IDs to retrieve"),
     ) -> dict:
         """Search for research papers across all configured sources with deduplication."""
         from scholarx.models import PaperSource, SearchQuery
@@ -63,8 +66,15 @@ def register_search_tools(mcp):
         client = _get_client()
         source_list = [PaperSource(s.strip()) for s in sources.split(",") if s.strip()] if sources else []
         cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else []
+        id_list = [i.strip() for i in paper_ids.split(",") if i.strip()] if paper_ids else None
         sq = SearchQuery(
-            query=query, sources=source_list, categories=cat_list, max_results=max_results, sort_by=sort_by
+            query=query,
+            sources=source_list,
+            categories=cat_list,
+            max_results=max_results,
+            sort_by=sort_by,
+            title=title if title else None,
+            paper_ids=id_list,
         )
         result = await client.search(sq)
         return {
@@ -174,6 +184,108 @@ def register_storage_tools(mcp):
         stats = client.storage.get_storage_stats()
         return {"papers": papers, "stats": stats}
 
+    @mcp.tool(tags={"storage"})
+    async def bulk_download_papers(
+        source: str = Field(description="Paper source"),
+        paper_ids: str = Field(description="Comma-separated list of paper IDs to download"),
+    ) -> dict:
+        """Download full PDFs of multiple papers to local storage."""
+        from scholarx.models import PaperSource
+
+        client = _get_client()
+        ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
+        results = []
+
+        for pid in ids:
+            paper = await client.get_paper(PaperSource(source), pid)
+            if not paper:
+                results.append({"paper_id": pid, "status": "failed", "error": "Paper not found"})
+                continue
+            path = await client.download_paper(paper)
+            results.append({"paper_id": pid, "status": "downloaded" if path else "failed", "local_path": path})
+
+        return {"results": results}
+
+
+def register_scanner_tools(mcp):
+    """Register research scanning and relevance scoring tools."""
+
+    @mcp.tool(tags={"scanner"})
+    async def scan_daily(
+        categories: str = Field(
+            default="cs.AI",
+            description="Comma-separated arXiv categories (e.g., cs.AI,cs.MA,cs.LG)",
+        ),
+        output_dir: str = Field(
+            default="",
+            description="Directory to save results. Auto-generated if empty.",
+        ),
+        download_pdfs: bool = Field(
+            default=True,
+            description="Whether to download PDFs for top-scored papers",
+        ),
+    ) -> dict:
+        """Fetch today's papers from arXiv RSS, score relevance, filter, and download top-scored PDFs."""
+        from scholarx.scanner import RelevanceScanner
+
+        cat_list = [c.strip() for c in categories.split(",") if c.strip()]
+        scanner = RelevanceScanner()
+        result = await scanner.scan_daily(
+            categories=cat_list,
+            output_dir=output_dir or "",
+            download_pdfs=download_pdfs,
+        )
+        return {
+            "status": result.status,
+            "stats": result.stats.model_dump(),
+            "output_dir": result.output_dir,
+            "synergy_report": result.synergy_report_path,
+            "top_papers": [
+                {
+                    "title": sp.paper.get("title", ""),
+                    "score": sp.score.total_score,
+                    "verdict": sp.score.verdict,
+                    "domains": list(sp.score.domain_hits.keys()),
+                }
+                for sp in (result.scored_papers or [])[:20]
+            ],
+        }
+
+    @mcp.tool(tags={"scanner"}, annotations={"readOnlyHint": True})
+    async def score_papers(
+        query: str = Field(description="Search query to find papers"),
+        categories: str = Field(
+            default="cs.AI,cs.MA,cs.LG",
+            description="Comma-separated arXiv categories",
+        ),
+        max_results: int = Field(default=20, description="Max papers to fetch and score"),
+    ) -> dict:
+        """Search for papers and score them against the relevance taxonomy."""
+        from scholarx.scanner import RelevanceScanner
+
+        cat_list = [c.strip() for c in categories.split(",") if c.strip()]
+        scanner = RelevanceScanner()
+        result = await scanner.scan_query(
+            query=query,
+            categories=cat_list,
+            max_results=max_results,
+            download_pdfs=False,
+        )
+        return {
+            "status": result.status,
+            "stats": result.stats.model_dump(),
+            "papers": [
+                {
+                    "title": sp.paper.get("title", ""),
+                    "id": sp.paper.get("id", ""),
+                    "score": sp.score.total_score,
+                    "verdict": sp.score.verdict,
+                    "domains": list(sp.score.domain_hits.keys()),
+                }
+                for sp in result.scored_papers
+            ],
+        }
+
 
 def register_prompts(mcp):
     """Register analysis prompts for the genius-agent."""
@@ -231,6 +343,8 @@ def get_mcp_instance():
         register_discovery_tools(mcp)
     if DEFAULT_STORAGETOOL:
         register_storage_tools(mcp)
+    if DEFAULT_SCANNERTOOL:
+        register_scanner_tools(mcp)
 
     register_prompts(mcp)
 
