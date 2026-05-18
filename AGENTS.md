@@ -1,11 +1,12 @@
 # AGENTS.md
 
 <!-- CONCEPT:SX-1.0 CLI — Rich terminal interface with progress bars, scan/status commands -->
-<!-- CONCEPT:SX-1.1 Relevance Scoring — 9-domain weighted keyword taxonomy for paper triage -->
+<!-- CONCEPT:SX-1.1 Relevance Scoring — Delegated to research-scanner skill with dynamic_scorer.py -->
 <!-- CONCEPT:SX-1.2 3-Tier Deduplication — DOI exact match → cross-ID mapping → fuzzy title+author (Levenshtein ≥ 0.90) -->
 <!-- CONCEPT:SX-1.3 Storage Dedup — PaperStorage skips already-downloaded PDFs via metadata hash lookup -->
 <!-- CONCEPT:SX-1.4 Auto-Analysis — --analyze flag chains comparative-analysis innovation extraction on relevant papers -->
 <!-- CONCEPT:SX-1.5 Category OR-Join — arXiv query builder uses OR-joined categories so a paper in ANY listed category matches -->
+<!-- CONCEPT:SX-1.6 Background Download Queue — Non-blocking paper downloads via queue.py with job tracking -->
 
 ## Tech Stack & Architecture
 - Language/Version: Python 3.11+
@@ -13,7 +14,8 @@
 - Key principles: Per-source rate limiting, 3-tier deduplication, full paper storage, existing KG node types.
 - Architecture:
     - `cli.py`: Rich CLI with progress bars for scan/status commands (CONCEPT:SX-1.0).
-    - `mcp_server.py`: MCP server entry point with 12 tools across 3 tag groups.
+    - `mcp_server.py`: MCP server entry point with tools across 3 tag groups (search, discovery, storage).
+    - `queue.py`: Background download queue with job tracking and status reporting.
     - `agent_server.py`: Graph agent server for autonomous operation.
     - `api_client.py`: Unified client — fan-out to all providers, dedup, merge.
     - `providers/`: One module per paper source (arXiv, PMC, bioRxiv, OSF, S2).
@@ -89,10 +91,12 @@ pytest tests/ -v
 - Agent Entry Point → `agent_server.py`
 - Unified Client → `api_client.py`
 - Provider Layer → `providers/`
+- Background Queue → `queue.py`
 - Deduplication → `deduplication.py`
 - Paper Storage → `paper_storage.py`
 - KG Bridge → `kg_integration.py`
 - Models → `models.py`
+- Docker → `docker/`
 
 ### File Tree
 ```text
@@ -101,11 +105,12 @@ scholarx/
 ├── __main__.py              # CLI entry point → cli.py
 ├── cli.py                    # Rich CLI: scan, status, --analyze (CONCEPT:SX-1.0)
 ├── models.py                # Paper, PaperSource, SearchQuery, SearchResult
-├── api_client.py            # ScholarXClient — unified entry point
+├── api_client.py            # ScholarXClient — unified entry point + queue management
+├── queue.py                  # Background download queue with job tracking (CONCEPT:SX-1.6)
 ├── deduplication.py          # 3-tier dedup: DOI → cross-ID → fuzzy title+author (CONCEPT:SX-1.2)
 ├── paper_storage.py          # Full PDF download + local storage with dedup (CONCEPT:SX-1.3)
 ├── kg_integration.py         # ScholarXKGBridge → KBIngestionEngine
-├── mcp_server.py             # 12 tools + 2 analysis prompts
+├── mcp_server.py             # MCP tools (search, discovery, storage) + 2 analysis prompts
 ├── agent_server.py           # Graph agent server
 ├── main_agent.json           # Agent identity
 ├── mcp_config.json           # MCP client config

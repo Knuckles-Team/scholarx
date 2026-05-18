@@ -224,7 +224,7 @@ class ScholarXClient:
         )
 
     async def download_paper(self, paper: Paper) -> str | None:
-        """Download a paper's full PDF.
+        """Download a paper's full PDF synchronously.
 
         Args:
             paper: Paper to download.
@@ -234,6 +234,50 @@ class ScholarXClient:
         """
         path = await self.storage.download_paper(paper)
         return str(path) if path else None
+
+    def queue_download(self, paper: Paper) -> str:
+        """Queue a paper for background downloading.
+
+        Args:
+            paper: Paper to download.
+
+        Returns:
+            job_id string.
+        """
+        import datetime
+        import uuid
+
+        from .queue import BACKGROUND_DOWNLOADS, JOB_QUEUE
+
+        job_id = f"job-{uuid.uuid4().hex[:8]}"
+        BACKGROUND_DOWNLOADS[job_id] = {
+            "status": "pending",
+            "paper_id": paper.id,
+            "title": paper.title,
+            "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        }
+
+        JOB_QUEUE.put(
+            {
+                "job_id": job_id,
+                "paper": paper,
+                "client": self,
+            }
+        )
+
+        return job_id
+
+    def get_download_status(self, job_id: str) -> dict | None:
+        """Get the status of a queued download job."""
+        from .queue import BACKGROUND_DOWNLOADS
+
+        return BACKGROUND_DOWNLOADS.get(job_id)
+
+    def get_queue_status(self) -> dict:
+        """Get the status of all queued downloads."""
+        from .queue import BACKGROUND_DOWNLOADS
+
+        return dict(BACKGROUND_DOWNLOADS)
 
     async def get_source_status(self) -> list[SourceStatus]:
         """Get the status of all configured sources."""

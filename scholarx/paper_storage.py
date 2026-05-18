@@ -20,7 +20,7 @@ from .models import Paper
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_STORAGE_DIR = Path.home() / ".scholarx" / "papers"
+DEFAULT_STORAGE_DIR = Path.home() / ".local" / "share" / "scholarx" / "papers"
 
 
 class PaperStorage:

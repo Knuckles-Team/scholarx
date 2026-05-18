@@ -11,7 +11,7 @@ license = { text = "MIT" }
 requires-python = ">=3.11, <3.14"
 authors = [{ name = "Audel Rouhi", email = "knucklessg1@gmail.com" }]
 dependencies = [
-    "agent-utilities>=0.9.0",
+    "agent-utilities>=0.11.0",
     "httpx>=0.27",
     "python-dotenv",
     "Levenshtein>=0.26",
@@ -20,10 +20,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["agent-utilities[mcp]>=0.9.0"]
-agent = ["agent-utilities[agent,logfire]>=0.9.0"]
+mcp = ["agent-utilities[mcp]>=0.11.0"]
+agent = ["agent-utilities[agent,logfire]>=0.11.0"]
 all = ["scholarx[mcp,agent]"]
-test = ["pytest", "pytest-asyncio", "respx"]
+test = ["pytest", "pytest-asyncio", "pytest-cov", "respx"]
 
 [project.scripts]
 scholarx = "scholarx.cli:cli"
@@ -53,3 +53,6 @@ ignore_missing_imports = true
 dev = [
     "pytest-timeout>=2.4.0",
 ]
+
+[tool.vulture]
+ignore_names = ["request", "config"]

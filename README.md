@@ -21,11 +21,9 @@
 ![PyPI - Wheel](https://img.shields.io/pypi/wheel/scholarx)
 ![PyPI - Implementation](https://img.shields.io/pypi/implementation/scholarx)
 
-*Version: 1.8.0*
+*Version: 0.7.0*
 
 **Universal Research Paper API** — a single entry point for querying, downloading, and ingesting research papers from all major preprint and academic repositories.
-
-Version: 0.7.0
 
 ## Overview
 
@@ -176,6 +174,9 @@ scholarx-mcp --transport streamable-http --host 0.0.0.0 --port 9600
 | `list_sources` | Available sources and status |
 | `list_categories` | Categories per source |
 | `download_paper` | Download full PDF |
+| `bulk_download_papers` | Queue multiple papers for background download |
+| `download_status` | Check status of a queued download job |
+| `list_downloads` | List all background downloads and their status |
 | `get_stored_papers` | List locally stored papers |
 
 ### MCP Prompts
@@ -189,10 +190,13 @@ scholarx-mcp --transport streamable-http --host 0.0.0.0 --port 9600
 
 ```bash
 # Build and run
-docker compose up -d
+docker compose -f docker/compose.yml up -d
+
+# MCP-specific orchestration
+docker compose -f docker/mcp.compose.yml up -d
 
 # Debug mode (mounts local source)
-docker compose -f compose.yml up --build
+docker compose -f docker/compose.yml up --build
 ```
 
 ## Environment Variables

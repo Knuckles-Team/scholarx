@@ -13,17 +13,14 @@ ENV HOST=${HOST} \
     UV_SYSTEM_PYTHON=1 \
     UV_COMPILE_BYTECODE=1
 
-WORKDIR /app
-
 RUN apt-get update \
     && apt-get install -y ripgrep tree fd-find curl nano \
     && curl -LsSf https://astral.sh/uv/install.sh | sh \
     && curl -sS https://starship.rs/install.sh | sh -s -- --yes \
-    && mkdir -p /root/.config
+    && mkdir -p /root/.config \
+    && echo 'eval "$(starship init bash)"' >> /root/.bashrc \
+    && uv pip install --system --upgrade --verbose --no-cache --break-system-packages --prerelease=allow scholarx[all]>=0.7.0
 
-COPY . /app
-RUN uv pip install --system --upgrade --verbose --no-cache --break-system-packages --prerelease=allow -e ".[all]"
-
-COPY starship.toml /root/.config/starship.toml
+COPY docker/starship.toml /root/.config/starship.toml
 
 CMD ["scholarx-mcp"]

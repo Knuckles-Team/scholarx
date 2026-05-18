@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Graph Database
+knowledge_graph.db*
+.repo_graph/
+.ladybug/

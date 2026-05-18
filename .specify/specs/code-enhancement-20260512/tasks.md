@@ -1,0 +1,61 @@
+# Tasks: Code Enhancement: scholarx
+
+Generated: 2026-05-12T14:14:41.028408+00:00
+Skipped informational: 5
+
+- [ ] [P] **T001** [Dependency Audit] Minor update: pypdf 6.10.2 (installed) -> 6.11.0
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T002** [Codebase Optimization] 1 functions exceed 200 lines (actionable refactoring targets): run_scan (300L)
+  - Priority: P2-Medium | Effort: Large
+- [ ] [P] **T003** [Codebase Optimization] Monolithic: cli.py (897L) — 2 functions with high complexity (worst: run_scan at
+  - Priority: P1-High | Effort: Large
+- [ ] [P] **T004** [Codebase Optimization] Needs attention: scanner.py (953L) — Low cohesion: 15 distinct concepts in one f
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T005** [Test Coverage] Test suite lacks intent diversity (only one type)
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T006** [Test Coverage] 21 potential doc-test drift items
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T007** [Documentation & Governance] README missing: Has a Table of Contents
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T008** [Documentation & Governance] README missing: References /docs directory material
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T009** [Architecture & Design Patterns] SRP: 2 modules exceed 500 lines (god modules)
+  - Priority: P2-Medium | Effort: Large
+- [ ] [P] **T010** [Architecture & Design Patterns] No discernible layer architecture (no domain/service/adapter separation)
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T011** [Architecture & Design Patterns] Low dependency injection ratio: 6%
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T012** [Concept Traceability] 7 orphaned concepts (only in one source)
+  - Priority: P4-Enhancement | Effort: Medium
+- [ ] [P] **T013** [Concept Traceability] 24 test functions missing concept markers
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T014** [Concept Traceability] 68 significant functions (>10 lines) missing concept markers in docstrings
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T015** [Linting & Formatting] Total lint findings: 2 (high/error: 0, medium/warning: 0, low: 2)
+  - Priority: P4-Enhancement | Effort: Medium
+- [ ] [P] **T016** [Pre-Commit Compliance] 2 hook(s) may be outdated: ruff-pre-commit, uv-pre-commit
+  - Priority: P2-Medium | Effort: Small
+- [ ] [P] **T017** [UI/UX Quality] Failed heuristic 'user_control_freedom': Control patterns: none
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T018** [UI/UX Quality] Failed heuristic 'consistency_standards': Consistency patterns: none
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T019** [UI/UX Quality] Failed heuristic 'flexibility_efficiency': Flexibility: config
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T020** [Changelog Audit] CHANGELOG.md is missing — create one following Keep a Changelog format
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T021** [Changelog Audit] CHANGELOG.md is missing
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T022** [Pytest Quality] Missing conftest.py for shared fixtures
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T023** [Pytest Quality] Low fixture usage: only 8% of tests use fixtures
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T024** [Pytest Quality] No @pytest.mark.parametrize usage — consider data-driven tests
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T025** [Pytest Quality] No shared fixtures in conftest.py
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T026** [Environment Variables] Partial env var documentation: 42% coverage
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T027** [Environment Variables] Undocumented env vars: DEBUG, ENABLE_OTEL, LLM_API_KEY, LLM_BASE_URL, MODEL_ID,
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T028** [Environment Variables] 2 Python env vars not in .env.example: DEFAULT_AGENT_NAME, SCANNERTOOL
+  - Priority: P3-Low | Effort: Medium

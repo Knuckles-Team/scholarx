@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_SEARCHTOOL = to_boolean(os.getenv("SEARCHTOOL", "True"))
 DEFAULT_DISCOVERYTOOL = to_boolean(os.getenv("DISCOVERYTOOL", "True"))
 DEFAULT_STORAGETOOL = to_boolean(os.getenv("STORAGETOOL", "True"))
-DEFAULT_SCANNERTOOL = to_boolean(os.getenv("SCANNERTOOL", "True"))
+
 
 # ── Lazy client singleton ───────────────────────────────────────────────────
 _client = None
@@ -48,8 +48,9 @@ def register_search_tools(mcp):
         tags={"search"},
         annotations={"readOnlyHint": True, "openWorldHint": True},
     )
-    async def search_papers(
-        query: str = Field(description="Search query string"),
+    async def sx_search(
+        action: str = Field(description="Action: 'search', 'get', 'author', 'recent'"),
+        query: str = Field(default="", description="Search query string"),
         sources: str = Field(
             default="",
             description="Comma-separated sources (arxiv,pmc,biorxiv,medrxiv,psyarxiv,osf,semantic_scholar). Empty=all",
@@ -58,15 +59,53 @@ def register_search_tools(mcp):
         max_results: int = Field(default=20, description="Maximum results", ge=1, le=100),
         sort_by: str = Field(default="relevance", description="Sort: 'relevance' or 'date'"),
         title: str = Field(default="", description="Optional title to search for"),
-        paper_ids: str = Field(default="", description="Comma-separated paper IDs to retrieve"),
+        paper_id: str = Field(
+            default="", description="Source-specific paper ID for 'get', or comma-separated for 'search'"
+        ),
+        author: str = Field(default="", description="Author name to search for"),
+        days: int = Field(default=1, description="Number of days to look back for 'recent'", ge=1, le=30),
     ) -> dict:
-        """Search for research papers across all configured sources with deduplication."""
+        """Search for research papers across all configured sources."""
         from scholarx.models import PaperSource, SearchQuery
 
         client = _get_client()
         source_list = [PaperSource(s.strip()) for s in sources.split(",") if s.strip()] if sources else []
         cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else []
-        id_list = [i.strip() for i in paper_ids.split(",") if i.strip()] if paper_ids else None
+
+        if action == "get":
+            if not sources or not paper_id:
+                return {"error": "Both 'sources' and 'paper_id' required for 'get' action"}
+            # Use the first provided source for a direct get
+            paper = await client.get_paper(PaperSource(sources.split(",")[0].strip()), paper_id)
+            return (
+                paper.model_dump(exclude={"normalized_title", "normalized_authors"})
+                if paper
+                else {"error": "Paper not found"}
+            )
+
+        if action == "author":
+            if not author:
+                return {"error": "'author' is required for 'author' action"}
+            sq = SearchQuery(query=author, author=author, max_results=max_results)
+            result = await client.search(sq)
+            return {
+                "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
+                "total_count": result.total_count,
+            }
+
+        if action == "recent":
+            if not cat_list:
+                cat_list = ["cs.AI", "cs.MA", "cs.SE", "cs.LG"]
+            srcs = source_list if source_list else None
+            result = await client.get_recent_papers(cat_list, days, srcs)
+            return {
+                "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
+                "total_count": result.total_count,
+                "sources_queried": [s.value for s in result.sources_queried],
+            }
+
+        # Default action: search
+        id_list = [i.strip() for i in paper_id.split(",") if i.strip()] if paper_id else None
         sq = SearchQuery(
             query=query,
             sources=source_list,
@@ -84,207 +123,155 @@ def register_search_tools(mcp):
             "deduplicated_count": result.deduplicated_count,
         }
 
-    @mcp.tool(tags={"search"}, annotations={"readOnlyHint": True})
-    async def get_paper(
-        source: str = Field(description="Paper source (arxiv, pmc, semantic_scholar, etc.)"),
-        paper_id: str = Field(description="Source-specific paper ID"),
-    ) -> dict:
-        """Retrieve a single paper by source and ID."""
-        from scholarx.models import PaperSource
-
-        client = _get_client()
-        paper = await client.get_paper(PaperSource(source), paper_id)
-        return (
-            paper.model_dump(exclude={"normalized_title", "normalized_authors"})
-            if paper
-            else {"error": "Paper not found"}
-        )
-
-    @mcp.tool(tags={"search"}, annotations={"readOnlyHint": True})
-    async def search_by_author(
-        author: str = Field(description="Author name to search for"),
-        max_results: int = Field(default=20, description="Maximum results"),
-    ) -> dict:
-        """Search for papers by a specific author across all sources."""
-        from scholarx.models import SearchQuery
-
-        client = _get_client()
-        sq = SearchQuery(query=author, author=author, max_results=max_results)
-        result = await client.search(sq)
-        return {
-            "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
-            "total_count": result.total_count,
-        }
-
 
 def register_discovery_tools(mcp):
     """Register discovery-related tools."""
 
     @mcp.tool(tags={"discovery"}, annotations={"readOnlyHint": True})
-    async def get_recent_papers(
-        categories: str = Field(default="cs.AI,cs.MA,cs.SE,cs.LG", description="Comma-separated categories"),
-        days: int = Field(default=1, description="Number of days to look back", ge=1, le=30),
-        sources: str = Field(default="", description="Comma-separated sources. Empty=all"),
+    async def sx_info(
+        action: str = Field(default="sources", description="Action: 'sources' or 'categories'"),
+        source: str = Field(default="", description="Filter by source for 'categories'. Empty=all"),
     ) -> dict:
-        """Get recently published papers across sources."""
+        """Get metadata about sources and categories."""
         from scholarx.models import PaperSource
 
         client = _get_client()
-        cat_list = [c.strip() for c in categories.split(",") if c.strip()]
-        source_list = [PaperSource(s.strip()) for s in sources.split(",") if s.strip()] if sources else None
-        result = await client.get_recent_papers(cat_list, days, source_list)
-        return {
-            "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
-            "total_count": result.total_count,
-            "sources_queried": [s.value for s in result.sources_queried],
-        }
+        if action == "categories":
+            src = PaperSource(source) if source else None
+            return await client.list_categories(src)
 
-    @mcp.tool(tags={"discovery"}, annotations={"readOnlyHint": True})
-    async def list_sources() -> dict:
-        """List all available paper sources and their status."""
-        client = _get_client()
+        # Default action: sources
         statuses = await client.get_source_status()
         return {"sources": [s.model_dump() for s in statuses]}
-
-    @mcp.tool(tags={"discovery"}, annotations={"readOnlyHint": True})
-    async def list_categories(
-        source: str = Field(default="", description="Filter by source. Empty=all"),
-    ) -> dict:
-        """List available categories for each paper source."""
-        from scholarx.models import PaperSource
-
-        client = _get_client()
-        src = PaperSource(source) if source else None
-        return await client.list_categories(src)
 
 
 def register_storage_tools(mcp):
     """Register paper storage tools."""
 
     @mcp.tool(tags={"storage"})
-    async def download_paper(
-        source: str = Field(description="Paper source"),
-        paper_id: str = Field(description="Source-specific paper ID"),
+    async def sx_storage(
+        action: str = Field(
+            default="stored",
+            description="Action: 'download', 'download_url', 'bulk_download', 'stored', 'status', 'queue'",
+        ),
+        source: str = Field(default="", description="Paper source (arxiv, pmc, etc.)"),
+        paper_ids: str = Field(default="", description="Comma-separated list of paper IDs to download"),
+        job_id: str = Field(default="", description="The job_id to check status for"),
     ) -> dict:
-        """Download the full PDF of a paper to local storage."""
+        """Manage offline PDF storage and background downloads."""
         from scholarx.models import PaperSource
 
         client = _get_client()
-        paper = await client.get_paper(PaperSource(source), paper_id)
-        if not paper:
-            return {"error": "Paper not found"}
-        path = await client.download_paper(paper)
-        return {"status": "downloaded" if path else "failed", "local_path": path, "paper_id": paper.id}
+        if action == "stored":
+            papers = client.storage.list_stored_papers()
+            stats = client.storage.get_storage_stats()
+            return {"papers": papers, "stats": stats}
 
-    @mcp.tool(tags={"storage"}, annotations={"readOnlyHint": True})
-    async def get_stored_papers() -> dict:
-        """List all locally stored papers."""
-        client = _get_client()
-        papers = client.storage.list_stored_papers()
-        stats = client.storage.get_storage_stats()
-        return {"papers": papers, "stats": stats}
+        if action == "status":
+            if not job_id:
+                return {"error": "'job_id' required for 'status' action"}
+            status = client.get_download_status(job_id)
+            return status if status else {"error": f"Job {job_id} not found."}
 
-    @mcp.tool(tags={"storage"})
-    async def bulk_download_papers(
-        source: str = Field(description="Paper source"),
-        paper_ids: str = Field(description="Comma-separated list of paper IDs to download"),
-    ) -> dict:
-        """Download full PDFs of multiple papers to local storage."""
-        from scholarx.models import PaperSource
+        if action == "queue":
+            return {"downloads": client.get_queue_status()}
 
-        client = _get_client()
-        ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
-        results = []
+        if action == "download":
+            if not source or not paper_ids:
+                return {"error": "'source' and 'paper_ids' required for 'download' action"}
+            pid = paper_ids.split(",")[0].strip()
 
-        for pid in ids:
+            # Check local storage first
+            stored = client.storage.list_stored_papers()
+            for p in stored:
+                if p.get("source") == source and (pid == p.get("id") or pid in p.get("id", "")):
+                    local_path = p.get("local_path")
+                    if local_path and __import__("pathlib").Path(local_path).exists():
+                        return {"status": "already_exists", "local_path": local_path, "paper_id": p.get("id")}
+
             paper = await client.get_paper(PaperSource(source), pid)
             if not paper:
-                results.append({"paper_id": pid, "status": "failed", "error": "Paper not found"})
-                continue
+                return {"error": "Paper not found"}
             path = await client.download_paper(paper)
-            results.append({"paper_id": pid, "status": "downloaded" if path else "failed", "local_path": path})
+            return {
+                "status": "downloaded" if path else "failed",
+                "local_path": str(path) if path else None,
+                "paper_id": paper.id,
+            }
 
-        return {"results": results}
+        if action == "download_url":
+            # Direct URL-based download — bypasses the arXiv API entirely.
+            # Accepts paper_ids as arXiv IDs (e.g. "2603.09022") or full URLs
+            # (e.g. "https://arxiv.org/abs/2603.09022").
+            if not paper_ids:
+                return {"error": "'paper_ids' required for 'download_url' action"}
+            from typing import Any
 
+            results: list[dict[str, Any]] = []
+            for raw_id in [i.strip() for i in paper_ids.split(",") if i.strip()]:
+                # Extract arXiv ID from URL if provided
+                pid = raw_id
+                for prefix in ("https://arxiv.org/abs/", "https://arxiv.org/pdf/", "http://arxiv.org/abs/"):
+                    if raw_id.startswith(prefix):
+                        pid = raw_id.split(prefix)[-1].rstrip("/")
+                        break
+                # Strip version suffix for filename, keep for URL
+                base_id = pid.split("v")[0] if "v" in pid and pid[-1].isdigit() else pid
+                pdf_url = f"https://arxiv.org/pdf/{pid}"
+                dest = client.storage.storage_dir / f"{base_id}.pdf"
+                if dest.exists():
+                    results.append({"paper_id": pid, "status": "already_exists", "local_path": str(dest)})
+                    continue
+                try:
+                    import httpx as _httpx
 
-def register_scanner_tools(mcp):
-    """Register research scanning and relevance scoring tools."""
+                    async with _httpx.AsyncClient(
+                        timeout=_httpx.Timeout(120.0, connect=30.0),
+                        follow_redirects=True,
+                    ) as http:
+                        resp = await http.get(pdf_url)
+                        resp.raise_for_status()
+                        dest.write_bytes(resp.content)
+                        results.append(
+                            {
+                                "paper_id": pid,
+                                "status": "downloaded",
+                                "local_path": str(dest),
+                                "size_bytes": len(resp.content),
+                            }
+                        )
+                except Exception as e:
+                    results.append({"paper_id": pid, "status": "failed", "error": str(e)})
+            return {"results": results}
 
-    @mcp.tool(tags={"scanner"})
-    async def scan_daily(
-        categories: str = Field(
-            default="cs.AI",
-            description="Comma-separated arXiv categories (e.g., cs.AI,cs.MA,cs.LG)",
-        ),
-        output_dir: str = Field(
-            default="",
-            description="Directory to save results. Auto-generated if empty.",
-        ),
-        download_pdfs: bool = Field(
-            default=True,
-            description="Whether to download PDFs for top-scored papers",
-        ),
-    ) -> dict:
-        """Fetch today's papers from arXiv RSS, score relevance, filter, and download top-scored PDFs."""
-        from scholarx.scanner import RelevanceScanner
+        if action == "bulk_download":
+            if not source or not paper_ids:
+                return {"error": "'source' and 'paper_ids' required for 'bulk_download' action"}
+            ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
+            results = []
+            stored = client.storage.list_stored_papers()
+            for pid in ids:
+                # Check local storage first
+                already_exists = False
+                for p in stored:
+                    if p.get("source") == source and (pid == p.get("id") or pid in p.get("id", "")):
+                        local_path = p.get("local_path")
+                        if local_path and __import__("pathlib").Path(local_path).exists():
+                            results.append({"paper_id": pid, "status": "already_exists", "local_path": local_path})
+                            already_exists = True
+                            break
+                if already_exists:
+                    continue
 
-        cat_list = [c.strip() for c in categories.split(",") if c.strip()]
-        scanner = RelevanceScanner()
-        result = await scanner.scan_daily(
-            categories=cat_list,
-            output_dir=output_dir or "",
-            download_pdfs=download_pdfs,
-        )
-        return {
-            "status": result.status,
-            "stats": result.stats.model_dump(),
-            "output_dir": result.output_dir,
-            "synergy_report": result.synergy_report_path,
-            "top_papers": [
-                {
-                    "title": sp.paper.get("title", ""),
-                    "score": sp.score.total_score,
-                    "verdict": sp.score.verdict,
-                    "domains": list(sp.score.domain_hits.keys()),
-                }
-                for sp in (result.scored_papers or [])[:20]
-            ],
-        }
+                paper = await client.get_paper(PaperSource(source), pid)
+                if not paper:
+                    results.append({"paper_id": pid, "status": "failed", "error": "Paper not found"})
+                    continue
+                jid = client.queue_download(paper)
+                results.append({"paper_id": pid, "status": "queued", "job_id": jid})
+            return {"results": results}
 
-    @mcp.tool(tags={"scanner"}, annotations={"readOnlyHint": True})
-    async def score_papers(
-        query: str = Field(description="Search query to find papers"),
-        categories: str = Field(
-            default="cs.AI,cs.MA,cs.LG",
-            description="Comma-separated arXiv categories",
-        ),
-        max_results: int = Field(default=20, description="Max papers to fetch and score"),
-    ) -> dict:
-        """Search for papers and score them against the relevance taxonomy."""
-        from scholarx.scanner import RelevanceScanner
-
-        cat_list = [c.strip() for c in categories.split(",") if c.strip()]
-        scanner = RelevanceScanner()
-        result = await scanner.scan_query(
-            query=query,
-            categories=cat_list,
-            max_results=max_results,
-            download_pdfs=False,
-        )
-        return {
-            "status": result.status,
-            "stats": result.stats.model_dump(),
-            "papers": [
-                {
-                    "title": sp.paper.get("title", ""),
-                    "id": sp.paper.get("id", ""),
-                    "score": sp.score.total_score,
-                    "verdict": sp.score.verdict,
-                    "domains": list(sp.score.domain_hits.keys()),
-                }
-                for sp in result.scored_papers
-            ],
-        }
+        return {"error": f"Unknown action: {action}"}
 
 
 def register_prompts(mcp):
@@ -343,8 +330,6 @@ def get_mcp_instance():
         register_discovery_tools(mcp)
     if DEFAULT_STORAGETOOL:
         register_storage_tools(mcp)
-    if DEFAULT_SCANNERTOOL:
-        register_scanner_tools(mcp)
 
     register_prompts(mcp)
 
