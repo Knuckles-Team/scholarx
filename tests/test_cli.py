@@ -7,14 +7,7 @@ Covers:
 - CONCEPT:SX-1.4 Auto-Analysis — --analyze flag behavior
 """
 
-import json
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-
 from scholarx.cli import DEFAULT_TAXONOMY, generate_synergy_report, score_paper
-
 
 # ── CONCEPT:SX-1.1 Relevance Scoring ────────────────────────────────────────
 
@@ -58,8 +51,7 @@ class TestScorePaper:
         """A paper with weak keyword matches should be marginal."""
         score = score_paper(
             "Improving Data Pipeline Throughput",
-            "We present techniques for scalable data processing "
-            "with a collaborative approach to decision support.",
+            "We present techniques for scalable data processing with a collaborative approach to decision support.",
         )
         assert score["verdict"] == "marginal"
         assert 1.0 <= score["total_score"] < 3.0
@@ -168,7 +160,6 @@ class TestCLIParsing:
 
     def test_scan_command_defaults(self):
         """Scan command should have sensible defaults."""
-        from scholarx.cli import cli
         import argparse
 
         parser = argparse.ArgumentParser()

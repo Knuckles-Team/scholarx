@@ -300,9 +300,6 @@ MIT
         "scholarx-mcp"
       ],
       "env": {
-        "AGENT_DESCRIPTION": "<YOUR_AGENT_DESCRIPTION>",
-        "AGENT_SYSTEM_PROMPT": "<YOUR_AGENT_SYSTEM_PROMPT>",
-        "DEFAULT_AGENT_NAME": "<YOUR_DEFAULT_AGENT_NAME>",
         "DISCOVERYTOOL": "True",
         "SEARCHTOOL": "True",
         "STORAGETOOL": "True"
@@ -330,9 +327,6 @@ MIT
         "8000"
       ],
       "env": {
-        "AGENT_DESCRIPTION": "<YOUR_AGENT_DESCRIPTION>",
-        "AGENT_SYSTEM_PROMPT": "<YOUR_AGENT_SYSTEM_PROMPT>",
-        "DEFAULT_AGENT_NAME": "<YOUR_DEFAULT_AGENT_NAME>",
         "DISCOVERYTOOL": "True",
         "SEARCHTOOL": "True",
         "STORAGETOOL": "True"

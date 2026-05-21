@@ -11,11 +11,12 @@ import sys
 
 from agent_utilities.base_utilities import to_boolean
 from dotenv import find_dotenv, load_dotenv
+from fastmcp import Context
 from pydantic import Field
 
 load_dotenv(find_dotenv())
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ def register_search_tools(mcp):
         ),
         author: str = Field(default="", description="Author name to search for"),
         days: int = Field(default=1, description="Number of days to look back for 'recent'", ge=1, le=30),
+        ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
         """Search for research papers across all configured sources."""
         from scholarx.models import PaperSource, SearchQuery
@@ -75,8 +77,12 @@ def register_search_tools(mcp):
         if action == "get":
             if not sources or not paper_id:
                 return {"error": "Both 'sources' and 'paper_id' required for 'get' action"}
+            if ctx:
+                await ctx.report_progress(10, 100)
             # Use the first provided source for a direct get
             paper = await client.get_paper(PaperSource(sources.split(",")[0].strip()), paper_id)
+            if ctx:
+                await ctx.report_progress(100, 100)
             return (
                 paper.model_dump(exclude={"normalized_title", "normalized_authors"})
                 if paper
@@ -115,7 +121,11 @@ def register_search_tools(mcp):
             title=title if title else None,
             paper_ids=id_list,
         )
+        if ctx:
+            await ctx.report_progress(10, 100)
         result = await client.search(sq)
+        if ctx:
+            await ctx.report_progress(100, 100)
         return {
             "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
             "total_count": result.total_count,
@@ -131,6 +141,7 @@ def register_discovery_tools(mcp):
     async def sx_info(
         action: str = Field(default="sources", description="Action: 'sources' or 'categories'"),
         source: str = Field(default="", description="Filter by source for 'categories'. Empty=all"),
+        ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
         """Get metadata about sources and categories."""
         from scholarx.models import PaperSource
@@ -141,7 +152,11 @@ def register_discovery_tools(mcp):
             return await client.list_categories(src)
 
         # Default action: sources
+        if ctx:
+            await ctx.report_progress(10, 100)
         statuses = await client.get_source_status()
+        if ctx:
+            await ctx.report_progress(100, 100)
         return {"sources": [s.model_dump() for s in statuses]}
 
 
@@ -157,6 +172,7 @@ def register_storage_tools(mcp):
         source: str = Field(default="", description="Paper source (arxiv, pmc, etc.)"),
         paper_ids: str = Field(default="", description="Comma-separated list of paper IDs to download"),
         job_id: str = Field(default="", description="The job_id to check status for"),
+        ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
         """Manage offline PDF storage and background downloads."""
         from scholarx.models import PaperSource
@@ -192,7 +208,11 @@ def register_storage_tools(mcp):
             paper = await client.get_paper(PaperSource(source), pid)
             if not paper:
                 return {"error": "Paper not found"}
+            if ctx:
+                await ctx.report_progress(10, 100)
             path = await client.download_paper(paper)
+            if ctx:
+                await ctx.report_progress(100, 100)
             return {
                 "status": "downloaded" if path else "failed",
                 "local_path": str(path) if path else None,

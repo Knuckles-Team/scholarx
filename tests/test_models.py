@@ -5,8 +5,8 @@ Covers:
 - CONCEPT:SX-1.3 Storage Dedup — Paper model normalization for dedup support
 """
 
-from scholarx.models import Paper, PaperSource, SearchQuery, normalize_author, normalize_title
 from scholarx.deduplication import deduplicate_papers
+from scholarx.models import Paper, PaperSource, SearchQuery, normalize_author, normalize_title
 
 
 class TestNormalization:
@@ -26,7 +26,8 @@ class TestNormalization:
 class TestPaperModel:
     def test_auto_normalization(self):
         p = Paper(
-            id="test:1", source=PaperSource.ARXIV,
+            id="test:1",
+            source=PaperSource.ARXIV,
             title="Attention Is All You Need",
             authors=["Ashish Vaswani", "Noam Shazeer"],
         )
@@ -40,9 +41,13 @@ class TestPaperModel:
 
 
 class TestDeduplication:
-    def _make_paper(self, id_: str, source: PaperSource, title: str, doi: str | None = None, authors: list[str] | None = None):
+    def _make_paper(
+        self, id_: str, source: PaperSource, title: str, doi: str | None = None, authors: list[str] | None = None
+    ):
         return Paper(
-            id=id_, source=source, title=title,
+            id=id_,
+            source=source,
+            title=title,
             authors=authors or ["Author One"],
             doi=doi,
         )
