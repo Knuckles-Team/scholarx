@@ -76,14 +76,14 @@ Configure your IDE's `mcp.json` to launch the MCP server via `uvx`:
         "scholarx-mcp"
       ],
       "env": {
+        "OSF_TOKEN": "your_osf_token_here",
+        "S2_API_KEY": "your_s2_api_key_here",
+        "NCBI_API_KEY": "your_ncbi_api_key_here",
         "SCHOLARX_STORAGE_DIR": "your_scholarx_storage_dir_here",
         "DEBUG": "your_debug_here",
         "PYTHONUNBUFFERED": "your_pythonunbuffered_here",
         "SERVICENOW_INSTANCE": "your_servicenow_instance_here",
         "SERVICENOW_USERNAME": "your_servicenow_username_here",
-        "OSF_TOKEN": "your_osf_token_here",
-        "S2_API_KEY": "your_s2_api_key_here",
-        "NCBI_API_KEY": "your_ncbi_api_key_here",
         "SERVICENOW_PASSWORD": "your_servicenow_password_here"
       }
     }
@@ -92,38 +92,7 @@ Configure your IDE's `mcp.json` to launch the MCP server via `uvx`:
 ```
 
 #### Streamable-HTTP Transport (Recommended for production deployments)
-Configure your client's `mcp.json` to launch the Streamable-HTTP server via `uvx` with explicit host and port definition:
-
-```json
-{
-  "mcpServers": {
-    "scholarx": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "scholarx",
-        "scholarx-mcp"
-      ],
-      "env": {
-        "TRANSPORT": "streamable-http",
-        "HOST": "0.0.0.0",
-        "PORT": "8000",
-        "SCHOLARX_STORAGE_DIR": "your_scholarx_storage_dir_here",
-        "DEBUG": "your_debug_here",
-        "PYTHONUNBUFFERED": "your_pythonunbuffered_here",
-        "SERVICENOW_INSTANCE": "your_servicenow_instance_here",
-        "SERVICENOW_USERNAME": "your_servicenow_username_here",
-        "OSF_TOKEN": "your_osf_token_here",
-        "S2_API_KEY": "your_s2_api_key_here",
-        "NCBI_API_KEY": "your_ncbi_api_key_here",
-        "SERVICENOW_PASSWORD": "your_servicenow_password_here"
-      }
-    }
-  }
-}
-```
-
-Alternatively, connect to a pre-deployed remote or local Streamable-HTTP instance:
+To run the server as a long-running Streamable-HTTP service:
 
 ```json
 {
@@ -143,14 +112,14 @@ docker run -d \
   -p 8004:8004 \
   -e TRANSPORT=streamable-http \
   -e PORT=8004 \
+  -e OSF_TOKEN="your_value" \
+  -e S2_API_KEY="your_value" \
+  -e NCBI_API_KEY="your_value" \
   -e SCHOLARX_STORAGE_DIR="your_value" \
   -e DEBUG="your_value" \
   -e PYTHONUNBUFFERED="your_value" \
   -e SERVICENOW_INSTANCE="your_value" \
   -e SERVICENOW_USERNAME="your_value" \
-  -e OSF_TOKEN="your_value" \
-  -e S2_API_KEY="your_value" \
-  -e NCBI_API_KEY="your_value" \
   -e SERVICENOW_PASSWORD="your_value" \
   knucklessg1/scholarx:latest
 ```
@@ -166,14 +135,14 @@ To start the interactive command-line agent:
 
 ```bash
 # Set credentials
+export OSF_TOKEN="your_value"
+export S2_API_KEY="your_value"
+export NCBI_API_KEY="your_value"
 export SCHOLARX_STORAGE_DIR="your_value"
 export DEBUG="your_value"
 export PYTHONUNBUFFERED="your_value"
 export SERVICENOW_INSTANCE="your_value"
 export SERVICENOW_USERNAME="your_value"
-export OSF_TOKEN="your_value"
-export S2_API_KEY="your_value"
-export NCBI_API_KEY="your_value"
 export SERVICENOW_PASSWORD="your_value"
 
 # Run the agent server
