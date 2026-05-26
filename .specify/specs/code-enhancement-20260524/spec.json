@@ -1,0 +1,262 @@
+{
+  "feature_id": "code-enhancement-20260524",
+  "title": "Code Enhancement: scholarx",
+  "created": "2026-05-24T04:17:16.230131+00:00",
+  "overview": "Automated code enhancement review for scholarx. Covers 18 analysis domains.",
+  "user_stories": [
+    {
+      "role": "developer",
+      "action": "address Project Analysis findings (grade: C, score: 74)",
+      "value": "improve project project analysis from C to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address Dependency Audit findings (grade: C, score: 71)",
+      "value": "improve project dependency audit from C to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address Codebase Optimization findings (grade: D, score: 69)",
+      "value": "improve project codebase optimization from D to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address Security Analysis findings (grade: D, score: 68)",
+      "value": "improve project security analysis from D to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address Test Coverage findings (grade: C, score: 75)",
+      "value": "improve project test coverage from C to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address Architecture & Design Patterns findings (grade: C, score: 70)",
+      "value": "improve project architecture & design patterns from C to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address Concept Traceability findings (grade: F, score: 40)",
+      "value": "improve project concept traceability from F to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address Test Execution findings (grade: F, score: 25)",
+      "value": "improve project test execution from F to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address UI/UX Quality findings (grade: C, score: 70)",
+      "value": "improve project ui/ux quality from C to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address Changelog Audit findings (grade: C, score: 75)",
+      "value": "improve project changelog audit from C to at least B (80+)"
+    },
+    {
+      "role": "developer",
+      "action": "address analyze_xdg_kg findings (grade: F, score: 0)",
+      "value": "improve project analyze_xdg_kg from F to at least B (80+)"
+    }
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR-001",
+      "description": "Minor update: pytest-xdist 3.6.0 (constraint \u2014 not installed) -> 3.8.0",
+      "testable": true
+    },
+    {
+      "id": "FR-002",
+      "description": "Minor update: agent-utilities 0.2.40 (installed) -> 0.16.0",
+      "testable": true
+    },
+    {
+      "id": "FR-003",
+      "description": "MAJOR update: pypdf 5.0 (constraint \u2014 not installed) -> 6.12.1",
+      "testable": true
+    },
+    {
+      "id": "FR-004",
+      "description": "MAJOR update: rich 13.9.4 (installed) -> 15.0.0",
+      "testable": true
+    },
+    {
+      "id": "FR-005",
+      "description": "Minor update: Levenshtein 0.26 (constraint \u2014 not installed) -> 0.27.3",
+      "testable": true
+    },
+    {
+      "id": "FR-006",
+      "description": "1 functions exceed 200 lines (actionable refactoring targets): run_scan (300L)",
+      "testable": true
+    },
+    {
+      "id": "FR-007",
+      "description": "Monolithic: cli.py (897L) \u2014 2 functions with high complexity (worst: run_scan at 300L, CC=27); Low cohesion: 10 distinct concepts in one file",
+      "testable": true
+    },
+    {
+      "id": "FR-008",
+      "description": "11 functions with nesting depth >4",
+      "testable": true
+    },
+    {
+      "id": "FR-009",
+      "description": "4 MEDIUM severity vulnerabilities found",
+      "testable": true
+    },
+    {
+      "id": "FR-010",
+      "description": "Test suite lacks intent diversity (only one type)",
+      "testable": true
+    },
+    {
+      "id": "FR-011",
+      "description": "18 potential doc-test drift items",
+      "testable": true
+    },
+    {
+      "id": "FR-012",
+      "description": "README.md missing sections: usage|quick start",
+      "testable": true
+    },
+    {
+      "id": "FR-013",
+      "description": "2 broken internal links in README.md",
+      "testable": true
+    },
+    {
+      "id": "FR-014",
+      "description": "README missing: Has a Table of Contents",
+      "testable": true
+    },
+    {
+      "id": "FR-015",
+      "description": "README missing: Has usage examples with code blocks",
+      "testable": true
+    },
+    {
+      "id": "FR-016",
+      "description": "SRP: 2 modules exceed 500 lines (god modules)",
+      "testable": true
+    },
+    {
+      "id": "FR-017",
+      "description": "No discernible layer architecture (no domain/service/adapter separation)",
+      "testable": true
+    },
+    {
+      "id": "FR-018",
+      "description": "Low dependency injection ratio: 3%",
+      "testable": true
+    },
+    {
+      "id": "FR-019",
+      "description": "13 orphaned concepts (only in one source)",
+      "testable": true
+    },
+    {
+      "id": "FR-020",
+      "description": "83 test functions missing concept markers",
+      "testable": true
+    },
+    {
+      "id": "FR-021",
+      "description": "57 significant functions (>10 lines) missing concept markers in docstrings",
+      "testable": true
+    },
+    {
+      "id": "FR-022",
+      "description": "Total lint findings: 0 (high/error: 0, medium/warning: 0, low: 0)",
+      "testable": true
+    },
+    {
+      "id": "FR-023",
+      "description": "2 hook(s) may be outdated: ruff-pre-commit, uv-pre-commit",
+      "testable": true
+    },
+    {
+      "id": "FR-024",
+      "description": "Failed heuristic 'user_control_freedom': Control patterns: exit",
+      "testable": true
+    },
+    {
+      "id": "FR-025",
+      "description": "Failed heuristic 'consistency_standards': Consistency patterns: none",
+      "testable": true
+    },
+    {
+      "id": "FR-026",
+      "description": "Failed heuristic 'flexibility_efficiency': Flexibility: config",
+      "testable": true
+    },
+    {
+      "id": "FR-027",
+      "description": "CHANGELOG.md exists but could not be parsed \u2014 check format compliance",
+      "testable": true
+    },
+    {
+      "id": "FR-028",
+      "description": "No changelog entries within the last 30 days",
+      "testable": true
+    },
+    {
+      "id": "FR-029",
+      "description": "keepachangelog not installed \u2014 pip install 'universal-skills[code-enhancer]'",
+      "testable": true
+    },
+    {
+      "id": "FR-030",
+      "description": "1 test files exceed 500 lines \u2014 split into focused modules",
+      "testable": true
+    },
+    {
+      "id": "FR-031",
+      "description": "Test directory lacks subdirectory organization (consider unit/, integration/, e2e/)",
+      "testable": true
+    },
+    {
+      "id": "FR-032",
+      "description": "2 tests have no assertions",
+      "testable": true
+    },
+    {
+      "id": "FR-033",
+      "description": "8 tests use weak assertions (assert result is not None, assert True, etc.)",
+      "testable": true
+    },
+    {
+      "id": "FR-034",
+      "description": "5 tests have excessive mocking (>5 mocks) \u2014 test behavior, not implementation",
+      "testable": true
+    },
+    {
+      "id": "FR-035",
+      "description": "Undocumented env vars: OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_PUBLIC_KEY, OTEL_EXPORTER_OTLP_SECRET_KEY",
+      "testable": true
+    },
+    {
+      "id": "FR-036",
+      "description": "Analysis error: No module named 'agent_utilities.knowledge_graph'",
+      "testable": true
+    }
+  ],
+  "success_criteria": [
+    {
+      "metric": "Overall GPA",
+      "current": 2.22,
+      "target": 3.0
+    },
+    {
+      "metric": "Domains at B or above",
+      "current": 7,
+      "target": 18
+    },
+    {
+      "metric": "Actionable findings",
+      "current": 36,
+      "target": 0
+    }
+  ]
+}

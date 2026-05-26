@@ -1,0 +1,79 @@
+# Tasks: Code Enhancement: scholarx
+
+Generated: 2026-05-22T22:13:08.623503+00:00
+Skipped informational: 5
+
+- [ ] [P] **T001** [Dependency Audit] Minor update: scholarx 0.4.1 (installed) -> 0.11.0
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T002** [Dependency Audit] Minor update: agent-utilities 0.6.2 (installed) -> 0.16.0
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T003** [Dependency Audit] Minor update: pytest-xdist 3.6.0 (constraint — not installed) -> 3.8.0
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T004** [Dependency Audit] Minor update: pypdf 6.10.2 (installed) -> 6.12.1
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T005** [Codebase Optimization] 1 functions exceed 200 lines (actionable refactoring targets): run_scan (300L)
+  - Priority: P2-Medium | Effort: Large
+- [ ] [P] **T006** [Codebase Optimization] Monolithic: cli.py (897L) — 2 functions with high complexity (worst: run_scan at
+  - Priority: P1-High | Effort: Large
+- [ ] [P] **T007** [Codebase Optimization] 9 functions with nesting depth >4
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T008** [Security Analysis] 2 MEDIUM severity vulnerabilities found
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T009** [Test Coverage] Test suite lacks intent diversity (only one type)
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T010** [Test Coverage] 17 potential doc-test drift items
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T011** [Documentation & Governance] README.md missing sections: usage|quick start
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T012** [Documentation & Governance] 2 broken internal links in README.md
+  - Priority: P4-Enhancement | Effort: Medium
+- [ ] [P] **T013** [Documentation & Governance] README missing: Has a Table of Contents
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T014** [Documentation & Governance] README missing: Has usage examples with code blocks
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T015** [Architecture & Design Patterns] SRP: 2 modules exceed 500 lines (god modules)
+  - Priority: P2-Medium | Effort: Large
+- [ ] [P] **T016** [Architecture & Design Patterns] No discernible layer architecture (no domain/service/adapter separation)
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T017** [Architecture & Design Patterns] Low dependency injection ratio: 3%
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T018** [Concept Traceability] 8 orphaned concepts (only in one source)
+  - Priority: P4-Enhancement | Effort: Medium
+- [ ] [P] **T019** [Concept Traceability] 108 test functions missing concept markers
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T020** [Concept Traceability] 56 significant functions (>10 lines) missing concept markers in docstrings
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T021** [Linting & Formatting] Total lint findings: 0 (high/error: 0, medium/warning: 0, low: 0)
+  - Priority: P4-Enhancement | Effort: Medium
+- [ ] [P] **T022** [Pre-Commit Compliance] 2 hook(s) may be outdated: ruff-pre-commit, uv-pre-commit
+  - Priority: P2-Medium | Effort: Small
+- [ ] [P] **T023** [UI/UX Quality] Failed heuristic 'user_control_freedom': Control patterns: exit
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T024** [UI/UX Quality] Failed heuristic 'consistency_standards': Consistency patterns: none
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T025** [UI/UX Quality] Failed heuristic 'flexibility_efficiency': Flexibility: config
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T026** [Changelog Audit] Version drift: pyproject.toml=0.11.0 vs CHANGELOG.md=1.8.0
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T027** [Pytest Quality] 1 test files exceed 500 lines — split into focused modules
+  - Priority: P2-Medium | Effort: Large
+- [ ] [P] **T028** [Pytest Quality] Test directory lacks subdirectory organization (consider unit/, integration/, e2
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T029** [Pytest Quality] Missing conftest.py for shared fixtures
+  - Priority: P2-Medium | Effort: Small
+- [ ] [P] **T030** [Pytest Quality] No @pytest.mark.parametrize usage — consider data-driven tests
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T031** [Pytest Quality] No shared fixtures in conftest.py
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T032** [Pytest Quality] 3 tests have no assertions
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T033** [Pytest Quality] 7 tests use weak assertions (assert result is not None, assert True, etc.)
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T034** [Pytest Quality] 5 tests have excessive mocking (>5 mocks) — test behavior, not implementation
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T035** [Environment Variables] Partial env var documentation: 54% coverage
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T036** [Environment Variables] Undocumented env vars: AUTH_TYPE, DEFAULT_AGENT_NAME, DISCOVERYTOOL, EUNOMIA_POL
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T037** [Environment Variables] 1 Python env vars not in .env.example: DEFAULT_AGENT_NAME
+  - Priority: P3-Low | Effort: Medium

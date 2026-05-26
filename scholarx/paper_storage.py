@@ -24,7 +24,7 @@ DEFAULT_STORAGE_DIR = Path.home() / ".local" / "share" / "scholarx" / "papers"
 
 
 class PaperStorage:
-    """Manages local storage of downloaded research papers."""
+    """Manages local storage of downloaded research papers. (CONCEPT:SX-1.3)"""
 
     def __init__(self, storage_dir: str | Path | None = None):
         self.storage_dir = Path(storage_dir) if storage_dir else DEFAULT_STORAGE_DIR
@@ -33,7 +33,7 @@ class PaperStorage:
         self._metadata_dir.mkdir(exist_ok=True)
 
     async def download_paper(self, paper: Paper) -> Path | None:
-        """Download the full PDF for a paper.
+        """Download the full PDF for a paper. (CONCEPT:SX-1.3)
 
         Args:
             paper: Paper with a pdf_url to download.
@@ -75,7 +75,7 @@ class PaperStorage:
             return None
 
     def get_local_path(self, paper_id: str) -> Path | None:
-        """Check if a paper is already stored locally.
+        """Check if a paper is already stored locally. (CONCEPT:SX-1.3)
 
         Args:
             paper_id: Source-specific paper ID.
@@ -95,7 +95,7 @@ class PaperStorage:
         return None
 
     def list_stored_papers(self) -> list[dict]:
-        """List all locally stored papers with their metadata.
+        """List all locally stored papers with their metadata. (CONCEPT:SX-1.3)
 
         Returns:
             List of dicts with paper metadata and local paths.
@@ -114,7 +114,7 @@ class PaperStorage:
         return sorted(results, key=lambda x: x.get("title", ""))
 
     def get_storage_stats(self) -> dict:
-        """Get storage statistics."""
+        """Get storage statistics. (CONCEPT:SX-1.3)"""
         pdfs = list(self.storage_dir.glob("*.pdf"))
         total_size = sum(f.stat().st_size for f in pdfs)
         return {

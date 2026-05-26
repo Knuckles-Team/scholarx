@@ -25,10 +25,8 @@ DEFAULT_SEARCHTOOL = to_boolean(os.getenv("SEARCHTOOL", "True"))
 DEFAULT_DISCOVERYTOOL = to_boolean(os.getenv("DISCOVERYTOOL", "True"))
 DEFAULT_STORAGETOOL = to_boolean(os.getenv("STORAGETOOL", "True"))
 
-
 # ── Lazy client singleton ───────────────────────────────────────────────────
 _client = None
-
 
 def _get_client():
     global _client
@@ -38,9 +36,7 @@ def _get_client():
         _client = ScholarXClient()
     return _client
 
-
 # ── Tool Registration Functions ─────────────────────────────────────────────
-
 
 def register_search_tools(mcp):
     """Register search-related tools."""
@@ -133,7 +129,6 @@ def register_search_tools(mcp):
             "deduplicated_count": result.deduplicated_count,
         }
 
-
 def register_discovery_tools(mcp):
     """Register discovery-related tools."""
 
@@ -158,7 +153,6 @@ def register_discovery_tools(mcp):
         if ctx:
             await ctx.report_progress(100, 100)
         return {"sources": [s.model_dump() for s in statuses]}
-
 
 def register_storage_tools(mcp):
     """Register paper storage tools."""
@@ -293,7 +287,6 @@ def register_storage_tools(mcp):
 
         return {"error": f"Unknown action: {action}"}
 
-
 def register_prompts(mcp):
     """Register analysis prompts for the genius-agent."""
 
@@ -325,9 +318,7 @@ def register_prompts(mcp):
             "AU-037 (Homeostatic Cron), and novel mechanisms."
         )
 
-
 # ── MCP Server Factory ──────────────────────────────────────────────────────
-
 
 def get_mcp_instance():
     """Create and configure the MCP server instance."""
@@ -355,7 +346,6 @@ def get_mcp_instance():
 
     return args, mcp
 
-
 def mcp_server():
     """MCP server entry point."""
     print(f"ScholarX MCP v{__version__}", file=sys.stderr)
@@ -369,7 +359,6 @@ def mcp_server():
         mcp.run(transport="stdio")
     else:
         mcp.run(transport="streamable-http", host=host, port=port)
-
 
 if __name__ == "__main__":
     mcp_server()

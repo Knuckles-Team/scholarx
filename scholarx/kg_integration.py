@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class ScholarXKGBridge:
-    """Bridges ScholarX papers into the Knowledge Graph.
+    """Bridges ScholarX papers into the Knowledge Graph. (CONCEPT:AU-007)
 
     Uses the existing KBIngestionEngine pipeline:
     1. Download PDF → store locally

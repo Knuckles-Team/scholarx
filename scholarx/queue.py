@@ -14,7 +14,7 @@ JOB_QUEUE: queue.Queue = queue.Queue()
 
 
 def _download_worker():
-    """Background worker that sequentially processes download jobs."""
+    """Background worker that sequentially processes download jobs. (CONCEPT:SX-1.6)"""
     logger.info("Starting ScholarX background download worker...")
     while True:
         try:
@@ -24,6 +24,7 @@ def _download_worker():
             client = job["client"]
 
             if job_id not in BACKGROUND_DOWNLOADS:
+                JOB_QUEUE.task_done()
                 continue
 
             BACKGROUND_DOWNLOADS[job_id]["status"] = "running"
@@ -51,6 +52,10 @@ def _download_worker():
 
         except Exception as e:
             logger.error(f"Critical error in ScholarX download worker: {e}")
+            try:
+                JOB_QUEUE.task_done()
+            except Exception:  # nosec B110
+                pass
             time.sleep(5.0)
 
 

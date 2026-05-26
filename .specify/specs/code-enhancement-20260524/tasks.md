@@ -1,0 +1,77 @@
+# Tasks: Code Enhancement: scholarx
+
+Generated: 2026-05-24T04:17:16.230131+00:00
+Skipped informational: 6
+
+- [ ] [P] **T001** [Dependency Audit] Minor update: pytest-xdist 3.6.0 (constraint — not installed) -> 3.8.0
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T002** [Dependency Audit] Minor update: agent-utilities 0.2.40 (installed) -> 0.16.0
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T003** [Dependency Audit] MAJOR update: pypdf 5.0 (constraint — not installed) -> 6.12.1
+  - Priority: P2-Medium | Effort: Small
+- [ ] [P] **T004** [Dependency Audit] MAJOR update: rich 13.9.4 (installed) -> 15.0.0
+  - Priority: P2-Medium | Effort: Small
+- [ ] [P] **T005** [Dependency Audit] Minor update: Levenshtein 0.26 (constraint — not installed) -> 0.27.3
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T006** [Codebase Optimization] 1 functions exceed 200 lines (actionable refactoring targets): run_scan (300L)
+  - Priority: P2-Medium | Effort: Large
+- [ ] [P] **T007** [Codebase Optimization] Monolithic: cli.py (897L) — 2 functions with high complexity (worst: run_scan at
+  - Priority: P1-High | Effort: Large
+- [ ] [P] **T008** [Codebase Optimization] 11 functions with nesting depth >4
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T009** [Security Analysis] 4 MEDIUM severity vulnerabilities found
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T010** [Test Coverage] Test suite lacks intent diversity (only one type)
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T011** [Test Coverage] 18 potential doc-test drift items
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T012** [Documentation & Governance] README.md missing sections: usage|quick start
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T013** [Documentation & Governance] 2 broken internal links in README.md
+  - Priority: P4-Enhancement | Effort: Medium
+- [ ] [P] **T014** [Documentation & Governance] README missing: Has a Table of Contents
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T015** [Documentation & Governance] README missing: Has usage examples with code blocks
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T016** [Architecture & Design Patterns] SRP: 2 modules exceed 500 lines (god modules)
+  - Priority: P2-Medium | Effort: Large
+- [ ] [P] **T017** [Architecture & Design Patterns] No discernible layer architecture (no domain/service/adapter separation)
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T018** [Architecture & Design Patterns] Low dependency injection ratio: 3%
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T019** [Concept Traceability] 13 orphaned concepts (only in one source)
+  - Priority: P4-Enhancement | Effort: Medium
+- [ ] [P] **T020** [Concept Traceability] 83 test functions missing concept markers
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T021** [Concept Traceability] 57 significant functions (>10 lines) missing concept markers in docstrings
+  - Priority: P4-Enhancement | Effort: Small
+- [ ] [P] **T022** [Linting & Formatting] Total lint findings: 0 (high/error: 0, medium/warning: 0, low: 0)
+  - Priority: P4-Enhancement | Effort: Medium
+- [ ] [P] **T023** [Pre-Commit Compliance] 2 hook(s) may be outdated: ruff-pre-commit, uv-pre-commit
+  - Priority: P2-Medium | Effort: Small
+- [ ] [P] **T024** [UI/UX Quality] Failed heuristic 'user_control_freedom': Control patterns: exit
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T025** [UI/UX Quality] Failed heuristic 'consistency_standards': Consistency patterns: none
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T026** [UI/UX Quality] Failed heuristic 'flexibility_efficiency': Flexibility: config
+  - Priority: P2-Medium | Effort: Medium
+- [ ] [P] **T027** [Changelog Audit] CHANGELOG.md exists but could not be parsed — check format compliance
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T028** [Changelog Audit] No changelog entries within the last 30 days
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T029** [Changelog Audit] keepachangelog not installed — pip install 'universal-skills[code-enhancer]'
+  - Priority: P3-Low | Effort: Small
+- [ ] [P] **T030** [Pytest Quality] 1 test files exceed 500 lines — split into focused modules
+  - Priority: P3-Low | Effort: Large
+- [ ] [P] **T031** [Pytest Quality] Test directory lacks subdirectory organization (consider unit/, integration/, e2
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T032** [Pytest Quality] 2 tests have no assertions
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T033** [Pytest Quality] 8 tests use weak assertions (assert result is not None, assert True, etc.)
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T034** [Pytest Quality] 5 tests have excessive mocking (>5 mocks) — test behavior, not implementation
+  - Priority: P3-Low | Effort: Medium
+- [ ] [P] **T035** [Environment Variables] Undocumented env vars: OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_PROTOCOL,
+  - Priority: P4-Enhancement | Effort: Medium
+- [ ] [P] **T036** [analyze_xdg_kg] Analysis error: No module named 'agent_utilities.knowledge_graph'
+  - Priority: P1-High | Effort: Medium
