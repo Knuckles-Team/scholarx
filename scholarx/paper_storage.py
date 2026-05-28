@@ -16,11 +16,29 @@ from pathlib import Path
 
 import httpx
 
-from .models import Paper
-
 logger = logging.getLogger(__name__)
 
-DEFAULT_STORAGE_DIR = Path.home() / ".local" / "share" / "scholarx" / "papers"
+from agent_utilities.core import paths
+
+from .models import Paper
+
+_OLD_STORAGE_DIR = Path.home() / ".local" / "share" / "scholarx" / "papers"
+DEFAULT_STORAGE_DIR = paths.research_dir() / "papers"
+
+# Migrate old papers and metadata if they exist
+if _OLD_STORAGE_DIR.exists() and _OLD_STORAGE_DIR != DEFAULT_STORAGE_DIR:
+    try:
+        DEFAULT_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+        # Migrate all files recursively (including .metadata directory)
+        for old_file in _OLD_STORAGE_DIR.rglob("*"):
+            if old_file.is_file():
+                rel_path = old_file.relative_to(_OLD_STORAGE_DIR)
+                new_file = DEFAULT_STORAGE_DIR / rel_path
+                new_file.parent.mkdir(parents=True, exist_ok=True)
+                if not new_file.exists():
+                    new_file.write_bytes(old_file.read_bytes())
+    except Exception as e:
+        logger.warning(f"Failed to migrate old scholarx papers: {e}")
 
 
 class PaperStorage:
