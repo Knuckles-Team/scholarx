@@ -16,7 +16,7 @@ from pydantic import Field
 
 load_dotenv(find_dotenv())
 
-__version__ = "0.20.1"
+__version__ = "0.20.2"
 
 logger = logging.getLogger(__name__)
 
