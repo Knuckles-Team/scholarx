@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore", message=".*urllib3.*or charset_normalizer.*")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="fastmcp")
 
 
-__version__ = "0.20.2"
+__version__ = "0.21.0"
 
 logging.basicConfig(
     level=logging.INFO,

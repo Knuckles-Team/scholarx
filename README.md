@@ -20,7 +20,7 @@
 ![PyPI - Wheel](https://img.shields.io/pypi/wheel/scholarx)
 ![PyPI - Implementation](https://img.shields.io/pypi/implementation/scholarx)
 
-*Version: 0.20.2*
+*Version: 0.21.0*
 
 ---
 
