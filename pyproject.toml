@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scholarx"
-version = "0.24.0"
+version = "0.25.0"
 description = "Universal Research Paper API — single entry point for arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF, and Semantic Scholar"
 readme = "README.md"
 license = { text = "MIT" }
