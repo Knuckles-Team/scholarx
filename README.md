@@ -22,6 +22,10 @@
 
 *Version: 0.25.0*
 
+> **Documentation** — Installation, deployment, usage across the API, CLI, MCP, and
+> agent interfaces are maintained in the
+> [official documentation](https://knuckles-team.github.io/scholarx/).
+
 ---
 
 ## Overview
@@ -332,6 +336,25 @@ uv pip install scholarx[all]
 # Using standard pip
 python -m pip install scholarx[all]
 ```
+
+---
+
+## Documentation
+
+The complete documentation is published as the
+[official documentation site](https://knuckles-team.github.io/scholarx/) and is the
+recommended reference for installation, deployment, and day-to-day operation.
+
+| Page | Contents |
+|---|---|
+| [Installation](https://knuckles-team.github.io/scholarx/installation/) | pip, source, extras, prebuilt Docker image |
+| [Deployment](https://knuckles-team.github.io/scholarx/deployment/) | run the MCP server and the agent, Compose, Caddy + Technitium, env config |
+| [Usage](https://knuckles-team.github.io/scholarx/usage/) | the MCP tools, the `ScholarXClient` API, the CLI |
+| [Overview](https://knuckles-team.github.io/scholarx/overview/) | ecosystem role, enterprise readiness, architecture |
+| [Concepts](https://knuckles-team.github.io/scholarx/concepts/) | concept registry (`CONCEPT:SX-*`) |
+| [Coverage Report](https://knuckles-team.github.io/scholarx/scholarx_coverage_report/) | per-source coverage and verification |
+
+`AGENTS.md` is the canonical contributor/agent guidance.
 
 ---
 
