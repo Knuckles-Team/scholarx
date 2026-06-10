@@ -9,7 +9,7 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_SYSTEM_PYTHON=1 \
     UV_HTTP_TIMEOUT=3600
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --upgrade --break-system-packages --prerelease=allow scholarx[all]>=0.25.0
+    uv pip install --system --upgrade --break-system-packages --prerelease=allow scholarx[all]>=0.26.0
 
 FROM python:3.11-slim
 
