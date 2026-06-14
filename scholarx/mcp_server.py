@@ -5,6 +5,7 @@ Thin MCP wrapper over the ScholarX API client. Provides search, discovery,
 and storage tools via the standard agent-utilities MCP server factory.
 """
 
+import asyncio
 import logging
 import os
 import sys
@@ -17,6 +18,11 @@ from pydantic import Field
 load_dotenv(find_dotenv())
 
 __version__ = "0.28.0"
+
+# Wall budget for an inline single-paper download before it is handed to the
+# background queue. Kept well under the MCP child-call timeout so a slow source
+# can never hold the (serialized) server slot open and wedge subsequent calls.
+_INLINE_DOWNLOAD_BUDGET_S = 60.0
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +215,23 @@ def register_storage_tools(mcp):
                 return {"error": "Paper not found"}
             if ctx:
                 await ctx.report_progress(10, 100)
-            path = await client.download_paper(paper)
+            # Bound the inline fetch so a slow/large source can never exceed the MCP
+            # call timeout and wedge the (serialized) server — on timeout, hand the
+            # job to the background download queue and return its id to poll via
+            # action='status'. Fast downloads still return the local path inline.
+            try:
+                path = await asyncio.wait_for(client.download_paper(paper), timeout=_INLINE_DOWNLOAD_BUDGET_S)
+            except TimeoutError:
+                jid = client.queue_download(paper)
+                return {
+                    "status": "queued",
+                    "job_id": jid,
+                    "paper_id": paper.id,
+                    "note": (
+                        "download exceeded the inline budget; running in background "
+                        "— poll with action='status', job_id=<id>"
+                    ),
+                }
             if ctx:
                 await ctx.report_progress(100, 100)
             return {
