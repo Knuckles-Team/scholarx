@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`SCANNERTOOL` toggle** — Removed the `SCANNERTOOL` environment variable and `register_scanner_tools` from MCP server initialization.
 
 ### Fixed
+- **`sx_storage` download** — Bound the inline fetch (60s); on timeout the job is
+  handed to the existing background download queue and its `job_id` is returned
+  to poll via `action='status'`. Prevents a slow/large source from exceeding the
+  MCP child-call timeout and wedging every subsequent (serialized) call. Fast
+  downloads still return the local path inline.
 - **`paper_storage.py`** — Minor fix to storage path handling.
 
 ## [1.8.0] - 2026-04-30
