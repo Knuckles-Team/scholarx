@@ -17,7 +17,7 @@ from pydantic import Field
 
 load_dotenv(find_dotenv())
 
-__version__ = "0.28.0"
+__version__ = "0.29.0"
 
 # Wall budget for an inline single-paper download before it is handed to the
 # background queue. Kept well under the MCP child-call timeout so a slow source

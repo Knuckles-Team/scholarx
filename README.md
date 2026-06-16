@@ -20,7 +20,7 @@
 ![PyPI - Wheel](https://img.shields.io/pypi/wheel/scholarx)
 ![PyPI - Implementation](https://img.shields.io/pypi/implementation/scholarx)
 
-*Version: 0.28.0*
+*Version: 0.29.0*
 
 > **Documentation** — Installation, deployment, usage across the API, CLI, MCP, and
 > agent interfaces are maintained in the
