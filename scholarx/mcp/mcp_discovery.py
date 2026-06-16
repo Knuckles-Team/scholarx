@@ -3,10 +3,11 @@
 Auto-generated from mcp_server.py during ecosystem standardization.
 """
 
+from agent_utilities.mcp_utilities import resolve_action
 from fastmcp import Context
 from pydantic import Field
 
-from scholarx.mcp_server import _get_client
+from scholarx.mcp_server import INFO_ACTIONS, _get_client
 
 
 def register_discovery_tools(mcp):
@@ -14,12 +15,20 @@ def register_discovery_tools(mcp):
 
     @mcp.tool(tags={"discovery"}, annotations={"readOnlyHint": True})
     async def sx_info(
-        action: str = Field(default="sources", description="Action: 'sources' or 'categories'"),
+        action: str = Field(
+            default="sources",
+            description="Action: 'sources' or 'categories'. Use 'list_actions' to discover all.",
+        ),
         source: str = Field(default="", description="Filter by source for 'categories'. Empty=all"),
         ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
         """Get metadata about sources and categories."""
         from scholarx.models import PaperSource
+
+        resolved = resolve_action(action, INFO_ACTIONS, service="scholarx")
+        if isinstance(resolved, dict):
+            return resolved
+        action = resolved
 
         client = _get_client()
         if action == "categories":

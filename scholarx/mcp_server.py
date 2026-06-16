@@ -11,6 +11,7 @@ import os
 import sys
 
 from agent_utilities.base_utilities import to_boolean
+from agent_utilities.mcp_utilities import resolve_action
 from dotenv import find_dotenv, load_dotenv
 from fastmcp import Context
 from pydantic import Field
@@ -30,6 +31,18 @@ logger = logging.getLogger(__name__)
 DEFAULT_SEARCHTOOL = to_boolean(os.getenv("SEARCHTOOL", "True"))
 DEFAULT_DISCOVERYTOOL = to_boolean(os.getenv("DISCOVERYTOOL", "True"))
 DEFAULT_STORAGETOOL = to_boolean(os.getenv("STORAGETOOL", "True"))
+
+# ── Valid actions per action-routed tool ────────────────────────────────────
+SEARCH_ACTIONS = ("search", "get", "author", "recent")
+INFO_ACTIONS = ("sources", "categories")
+STORAGE_ACTIONS = (
+    "download",
+    "download_url",
+    "bulk_download",
+    "stored",
+    "status",
+    "queue",
+)
 
 # ── Lazy client singleton ───────────────────────────────────────────────────
 _client = None
@@ -55,7 +68,9 @@ def register_search_tools(mcp):
         annotations={"readOnlyHint": True, "openWorldHint": True},
     )
     async def sx_search(
-        action: str = Field(description="Action: 'search', 'get', 'author', 'recent'"),
+        action: str = Field(
+            description="Action: 'search', 'get', 'author', 'recent'. Use 'list_actions' to discover all."
+        ),
         query: str = Field(default="", description="Search query string"),
         sources: str = Field(
             default="",
@@ -74,6 +89,11 @@ def register_search_tools(mcp):
     ) -> dict:
         """Search for research papers across all configured sources."""
         from scholarx.models import PaperSource, SearchQuery
+
+        resolved = resolve_action(action, SEARCH_ACTIONS, service="scholarx")
+        if isinstance(resolved, dict):
+            return resolved
+        action = resolved
 
         client = _get_client()
         source_list = [PaperSource(s.strip()) for s in sources.split(",") if s.strip()] if sources else []
@@ -144,12 +164,20 @@ def register_discovery_tools(mcp):
 
     @mcp.tool(tags={"discovery"}, annotations={"readOnlyHint": True})
     async def sx_info(
-        action: str = Field(default="sources", description="Action: 'sources' or 'categories'"),
+        action: str = Field(
+            default="sources",
+            description="Action: 'sources' or 'categories'. Use 'list_actions' to discover all.",
+        ),
         source: str = Field(default="", description="Filter by source for 'categories'. Empty=all"),
         ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
         """Get metadata about sources and categories."""
         from scholarx.models import PaperSource
+
+        resolved = resolve_action(action, INFO_ACTIONS, service="scholarx")
+        if isinstance(resolved, dict):
+            return resolved
+        action = resolved
 
         client = _get_client()
         if action == "categories":
@@ -172,7 +200,10 @@ def register_storage_tools(mcp):
     async def sx_storage(
         action: str = Field(
             default="stored",
-            description="Action: 'download', 'download_url', 'bulk_download', 'stored', 'status', 'queue'",
+            description=(
+                "Action: 'download', 'download_url', 'bulk_download', 'stored', "
+                "'status', 'queue'. Use 'list_actions' to discover all."
+            ),
         ),
         source: str = Field(default="", description="Paper source (arxiv, pmc, etc.)"),
         paper_ids: str = Field(default="", description="Comma-separated list of paper IDs to download"),
@@ -181,6 +212,11 @@ def register_storage_tools(mcp):
     ) -> dict:
         """Manage offline PDF storage and background downloads."""
         from scholarx.models import PaperSource
+
+        resolved = resolve_action(action, STORAGE_ACTIONS, service="scholarx")
+        if isinstance(resolved, dict):
+            return resolved
+        action = resolved
 
         client = _get_client()
         if action == "stored":
@@ -312,7 +348,8 @@ def register_storage_tools(mcp):
                 results.append({"paper_id": pid, "status": "queued", "job_id": jid})
             return {"results": results}
 
-        return {"error": f"Unknown action: {action}"}
+        # resolve_action guarantees a valid canonical action above.
+        return {"error": f"Unknown action: {action}"}  # pragma: no cover
 
 
 def register_prompts(mcp):

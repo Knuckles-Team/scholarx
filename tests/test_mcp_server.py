@@ -276,9 +276,10 @@ async def test_sx_storage_basic_actions(mock_client):
         res = await call_sx_storage(action="queue")
         assert res == {"downloads": {"job-123": {"status": "running"}}}
 
-    # Action "invalid"
-    res = await call_sx_storage(action="nonsense")
-    assert res == {"error": "Unknown action: nonsense"}
+    # Unknown action now raises a rich did-you-mean error pointing at list_actions
+    # (standardized via the shared agent-utilities action-discovery helper).
+    with pytest.raises(ValueError, match="list_actions"):
+        await call_sx_storage(action="nonsense")
 
 
 @pytest.mark.concept("SX-1.0")
