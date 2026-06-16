@@ -3,10 +3,11 @@
 Auto-generated from mcp_server.py during ecosystem standardization.
 """
 
+from agent_utilities.mcp_utilities import resolve_action
 from fastmcp import Context
 from pydantic import Field
 
-from scholarx.mcp_server import _get_client
+from scholarx.mcp_server import SEARCH_ACTIONS, _get_client
 
 
 def register_search_tools(mcp):
@@ -17,7 +18,9 @@ def register_search_tools(mcp):
         annotations={"readOnlyHint": True, "openWorldHint": True},
     )
     async def sx_search(
-        action: str = Field(description="Action: 'search', 'get', 'author', 'recent'"),
+        action: str = Field(
+            description="Action: 'search', 'get', 'author', 'recent'. Use 'list_actions' to discover all."
+        ),
         query: str = Field(default="", description="Search query string"),
         sources: str = Field(
             default="",
@@ -36,6 +39,11 @@ def register_search_tools(mcp):
     ) -> dict:
         """Search for research papers across all configured sources."""
         from scholarx.models import PaperSource, SearchQuery
+
+        resolved = resolve_action(action, SEARCH_ACTIONS, service="scholarx")
+        if isinstance(resolved, dict):
+            return resolved
+        action = resolved
 
         client = _get_client()
         source_list = [PaperSource(s.strip()) for s in sources.split(",") if s.strip()] if sources else []
