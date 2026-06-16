@@ -10,6 +10,7 @@ source for "papers announced today" and is updated daily at midnight EST.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import xml.etree.ElementTree as ET  # nosec B405
@@ -141,31 +142,44 @@ class RSSFeedProvider:
         all_papers: dict[str, Paper] = {}  # keyed by arXiv ID for dedup
         result = RSSFeedResult()
 
-        for category in categories:
-            feed_url = f"{ARXIV_RSS_BASE}/{category.lower()}"
-            logger.info(f"Fetching RSS feed: {feed_url}")
+        # Fetch every category feed concurrently over one shared client. Fetching
+        # serially opened a new client per category and let a slow arXiv RSS host
+        # stack into N x timeout — the cause of `recent` hanging. The connect
+        # timeout mirrors providers/base.py.
+        timeout = httpx.Timeout(self._timeout, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
 
-            try:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async def _fetch(category: str) -> tuple[str, str | None]:
+                feed_url = f"{ARXIV_RSS_BASE}/{category.lower()}"
+                logger.info(f"Fetching RSS feed: {feed_url}")
+                try:
                     response = await client.get(feed_url)
                     response.raise_for_status()
+                    return category, response.text
+                except Exception as e:
+                    logger.error(f"Failed to fetch RSS feed {feed_url}: {e}")
+                    return category, None
 
-                feed_result = self._parse_rss_feed(response.text, category)
-                result.feed_title = feed_result.feed_title or result.feed_title
-                result.feed_date = feed_result.feed_date or result.feed_date
+            responses = await asyncio.gather(*(_fetch(c) for c in categories))
 
-                for paper in feed_result.papers:
-                    arxiv_id = paper.id.replace("arxiv:", "")
-                    if arxiv_id not in all_papers:
-                        all_papers[arxiv_id] = paper
+        # Parse and aggregate sequentially so dedup ordering stays deterministic.
+        for category, text in responses:
+            if text is None:
+                continue
 
-                result.total_items += feed_result.total_items
-                result.new_count += feed_result.new_count
-                result.cross_count += feed_result.cross_count
-                result.replace_count += feed_result.replace_count
+            feed_result = self._parse_rss_feed(text, category)
+            result.feed_title = feed_result.feed_title or result.feed_title
+            result.feed_date = feed_result.feed_date or result.feed_date
 
-            except Exception as e:
-                logger.error(f"Failed to fetch RSS feed {feed_url}: {e}")
+            for paper in feed_result.papers:
+                arxiv_id = paper.id.replace("arxiv:", "")
+                if arxiv_id not in all_papers:
+                    all_papers[arxiv_id] = paper
+
+            result.total_items += feed_result.total_items
+            result.new_count += feed_result.new_count
+            result.cross_count += feed_result.cross_count
+            result.replace_count += feed_result.replace_count
 
         result.papers = list(all_papers.values())
         return result

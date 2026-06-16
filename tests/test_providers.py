@@ -1,18 +1,16 @@
-import asyncio
+from unittest.mock import AsyncMock, patch
+
+import httpx
 import pytest
 import respx
-import httpx
-import time
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, UTC
 
 from scholarx.models import Paper, PaperSource, SearchQuery, SourceConfig
+from scholarx.providers.arxiv import ARXIV_CATEGORIES, ArxivProvider
 from scholarx.providers.base import PaperProvider
-from scholarx.providers.arxiv import ArxivProvider, ARXIV_CATEGORIES
 from scholarx.providers.biorxiv import BiorxivProvider, MedrxivProvider
 from scholarx.providers.osf import OSFProvider, PsyarxivProvider
 from scholarx.providers.pmc import PMCProvider
-from scholarx.providers.rss import RSSFeedProvider, RSSFeedResult
+from scholarx.providers.rss import RSSFeedProvider
 from scholarx.providers.semantic_scholar import SemanticScholarProvider
 
 
@@ -249,6 +247,44 @@ async def test_arxiv_provider_get_recent_fallback():
         papers = await provider.get_recent(categories=["cs.AI"], days=1, use_rss=True)
         assert len(papers) == 1
         assert papers[0].id == "arxiv:2605.12345v1"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_rss_fetch_arxiv_daily_concurrent_partial_failure():
+    # Multiple category feeds are fetched concurrently; one failing feed (500)
+    # must not sink the others — the healthy feeds still aggregate.
+    def _feed(arxiv_id: str, title: str, cat: str) -> str:
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <channel>
+            <title>arXiv {cat} updates</title>
+            <pubDate>Fri, 22 May 2026 00:00:00 EST</pubDate>
+            <item>
+              <title>{title}</title>
+              <link>https://arxiv.org/abs/{arxiv_id}</link>
+              <description>arXiv:{arxiv_id}v1 Announce Type: new&#10;Abstract: Abs</description>
+              <arxiv:announce_type>new</arxiv:announce_type>
+              <category>{cat}</category>
+              <dc:creator>Author</dc:creator>
+            </item>
+          </channel>
+        </rss>
+        """
+
+    respx.get("https://rss.arxiv.org/rss/cs.ai").mock(
+        return_value=httpx.Response(200, content=_feed("2605.00001", "AI Paper", "cs.AI"))
+    )
+    respx.get("https://rss.arxiv.org/rss/cs.lg").mock(return_value=httpx.Response(500))
+    respx.get("https://rss.arxiv.org/rss/cs.se").mock(
+        return_value=httpx.Response(200, content=_feed("2605.00002", "SE Paper", "cs.SE"))
+    )
+
+    provider = RSSFeedProvider(pre_filter_categories=False)
+    result = await provider.fetch_arxiv_daily(["cs.AI", "cs.LG", "cs.SE"])
+
+    titles = {p.title for p in result.papers}
+    assert titles == {"AI Paper", "SE Paper"}
 
 
 @pytest.mark.asyncio
