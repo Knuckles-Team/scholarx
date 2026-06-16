@@ -11,7 +11,7 @@ import os
 import sys
 
 from agent_utilities.base_utilities import to_boolean
-from agent_utilities.mcp_utilities import resolve_action
+from agent_utilities.mcp_utilities import resolve_action, run_blocking
 from dotenv import find_dotenv, load_dotenv
 from fastmcp import Context
 from pydantic import Field
@@ -220,18 +220,18 @@ def register_storage_tools(mcp):
 
         client = _get_client()
         if action == "stored":
-            papers = client.storage.list_stored_papers()
-            stats = client.storage.get_storage_stats()
+            papers = await run_blocking(client.storage.list_stored_papers)
+            stats = await run_blocking(client.storage.get_storage_stats)
             return {"papers": papers, "stats": stats}
 
         if action == "status":
             if not job_id:
                 return {"error": "'job_id' required for 'status' action"}
-            status = client.get_download_status(job_id)
+            status = await run_blocking(client.get_download_status, job_id)
             return status if status else {"error": f"Job {job_id} not found."}
 
         if action == "queue":
-            return {"downloads": client.get_queue_status()}
+            return {"downloads": await run_blocking(client.get_queue_status)}
 
         if action == "download":
             if not source or not paper_ids:
@@ -239,7 +239,7 @@ def register_storage_tools(mcp):
             pid = paper_ids.split(",")[0].strip()
 
             # Check local storage first
-            stored = client.storage.list_stored_papers()
+            stored = await run_blocking(client.storage.list_stored_papers)
             for p in stored:
                 if p.get("source") == source and (pid == p.get("id") or pid in p.get("id", "")):
                     local_path = p.get("local_path")
@@ -258,7 +258,7 @@ def register_storage_tools(mcp):
             try:
                 path = await asyncio.wait_for(client.download_paper(paper), timeout=_INLINE_DOWNLOAD_BUDGET_S)
             except TimeoutError:
-                jid = client.queue_download(paper)
+                jid = await run_blocking(client.queue_download, paper)
                 return {
                     "status": "queued",
                     "job_id": jid,
@@ -326,7 +326,7 @@ def register_storage_tools(mcp):
                 return {"error": "'source' and 'paper_ids' required for 'bulk_download' action"}
             ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
             results = []
-            stored = client.storage.list_stored_papers()
+            stored = await run_blocking(client.storage.list_stored_papers)
             for pid in ids:
                 # Check local storage first
                 already_exists = False
@@ -344,7 +344,7 @@ def register_storage_tools(mcp):
                 if not paper:
                     results.append({"paper_id": pid, "status": "failed", "error": "Paper not found"})
                     continue
-                jid = client.queue_download(paper)
+                jid = await run_blocking(client.queue_download, paper)
                 results.append({"paper_id": pid, "status": "queued", "job_id": jid})
             return {"results": results}
 
