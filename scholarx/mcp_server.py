@@ -7,11 +7,15 @@ and storage tools via the standard agent-utilities MCP server factory.
 
 import asyncio
 import logging
-import os
 import sys
 
-from agent_utilities.base_utilities import to_boolean
-from agent_utilities.mcp_utilities import load_config, resolve_action, run_blocking
+from agent_utilities.core.config import setting
+from agent_utilities.mcp_utilities import (
+    load_config,
+    register_tool_surface,
+    resolve_action,
+    run_blocking,
+)
 from fastmcp import Context
 from pydantic import Field
 
@@ -25,11 +29,6 @@ __version__ = "0.30.0"
 _INLINE_DOWNLOAD_BUDGET_S = 60.0
 
 logger = logging.getLogger(__name__)
-
-# ── Tag-Gated Tool Toggles ──────────────────────────────────────────────────
-DEFAULT_SEARCHTOOL = to_boolean(os.getenv("SEARCHTOOL", "True"))
-DEFAULT_DISCOVERYTOOL = to_boolean(os.getenv("DISCOVERYTOOL", "True"))
-DEFAULT_STORAGETOOL = to_boolean(os.getenv("STORAGETOOL", "True"))
 
 # ── Valid actions per action-routed tool ────────────────────────────────────
 SEARCH_ACTIONS = ("search", "get", "author", "recent")
@@ -401,12 +400,19 @@ def get_mcp_instance():
         ),
     )
 
-    if DEFAULT_SEARCHTOOL:
-        register_search_tools(mcp)
-    if DEFAULT_DISCOVERYTOOL:
-        register_discovery_tools(mcp)
-    if DEFAULT_STORAGETOOL:
-        register_storage_tools(mcp)
+    from scholarx.api_client import ScholarXClient
+
+    register_tool_surface(
+        mcp,
+        client_cls=ScholarXClient,
+        get_client=_get_client,
+        service="scholarx",
+        registrars=[
+            register_search_tools,
+            register_discovery_tools,
+            register_storage_tools,
+        ],
+    )
 
     register_prompts(mcp)
 
@@ -418,9 +424,9 @@ def mcp_server():
     print(f"ScholarX MCP v{__version__}", file=sys.stderr)
     args, mcp = get_mcp_instance()
 
-    transport = getattr(args, "transport", os.getenv("TRANSPORT", "stdio"))
-    host = getattr(args, "host", os.getenv("HOST", "0.0.0.0"))  # nosec B104
-    port = int(getattr(args, "port", os.getenv("PORT", "9600")))
+    transport = getattr(args, "transport", setting("TRANSPORT", "stdio"))
+    host = getattr(args, "host", setting("HOST", "0.0.0.0"))  # nosec B104
+    port = int(getattr(args, "port", setting("PORT", "9600")))
 
     if transport == "stdio":
         mcp.run(transport="stdio")
