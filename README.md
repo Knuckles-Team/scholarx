@@ -56,11 +56,19 @@ Detailed instructions on how to use the underlying API wrappers, extended schema
 This server utilizes dynamic Action-Routed tools to optimize token overhead and maximize IDE compatibility.
 
 ### Available MCP Tools
-| Tool Module | Toggle Env Var | Enabled by Default | Description & Nested Methods |
-|-------------|----------------|--------------------|------------------------------|
-| **Search** | `SEARCH_TOOL` | `True` | Register search-related tools. Action-routed methods: `author`, `get`, `recent`. |
-| **Discovery** | `DISCOVERY_TOOL` | `True` | Register discovery-related tools. Action-routed methods: `categories`. |
-| **Storage** | `STORAGE_TOOL` | `True` | Register paper storage tools. Action-routed methods: `bulk_download`, `download`, `download_url`, `queue`, `status`, `stored`. |
+
+The table below is auto-generated from the MCP server — do not edit by hand.
+
+<!-- MCP-TOOLS-TABLE:START -->
+
+| MCP Tool | Toggle Env Var | Description |
+|----------|----------------|-------------|
+| `sx_info` | `DISCOVERYTOOL` | Get metadata about sources and categories. |
+| `sx_search` | `SEARCHTOOL` | Search for research papers across all configured sources. |
+| `sx_storage` | `STORAGETOOL` | Manage offline PDF storage and background downloads. |
+
+_3 action-routed tools (default `MCP_TOOL_MODE=condensed`). Each is enabled unless its toggle is set false; set `MCP_TOOL_MODE=verbose` (or `both`) for the 1:1 per-operation surface. Auto-generated — do not edit._
+<!-- MCP-TOOLS-TABLE:END -->
 
 Detailed tool schemas, parameter shapes, and validation constraints are preserved in [docs/mcp.md](docs/mcp.md).
 
