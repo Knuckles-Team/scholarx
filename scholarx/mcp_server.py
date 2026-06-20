@@ -11,12 +11,11 @@ import os
 import sys
 
 from agent_utilities.base_utilities import to_boolean
-from agent_utilities.mcp_utilities import resolve_action, run_blocking
-from dotenv import find_dotenv, load_dotenv
+from agent_utilities.mcp_utilities import load_config, resolve_action, run_blocking
 from fastmcp import Context
 from pydantic import Field
 
-load_dotenv(find_dotenv())
+load_config()
 
 __version__ = "0.30.0"
 
