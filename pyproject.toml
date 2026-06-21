@@ -31,11 +31,17 @@ scholarx = "scholarx.cli:cli"
 scholarx-mcp = "scholarx.mcp_server:mcp_server"
 scholarx-agent = "scholarx.agent_server:agent_server"
 
+[project.entry-points."agent_utilities.skill_providers"]
+scholarx = "scholarx.skills"
+
+[project.entry-points."agent_utilities.prompt_providers"]
+scholarx = "scholarx.prompts"
+
 [tool.setuptools.packages.find]
 include = ["scholarx*"]
 
 [tool.setuptools.package-data]
-scholarx = ["*.json", "*.md", "prompts/**"]
+scholarx = ["*.json", "*.md", "prompts/**", "skills/**"]
 
 [tool.ruff]
 line-length = 120
