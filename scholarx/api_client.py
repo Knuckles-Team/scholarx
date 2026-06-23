@@ -27,6 +27,42 @@ from .providers.base import PaperProvider
 
 logger = logging.getLogger(__name__)
 
+# Default bounded concurrency for parallel arXiv PDF downloads. Sized to
+# overlap I/O without overwhelming the arXiv mirrors; politeness for the
+# background queue is enforced separately in queue.py.
+ARXIV_DOWNLOAD_CONCURRENCY = 5
+
+_ARXIV_URL_PREFIXES = (
+    "https://arxiv.org/abs/",
+    "https://arxiv.org/pdf/",
+    "http://arxiv.org/abs/",
+    "http://arxiv.org/pdf/",
+)
+
+
+def _normalize_arxiv_id(raw_id: str) -> tuple[str, str, str]:
+    """Normalize an arXiv id or URL into (pid, base_id, pdf_url).
+
+    Args:
+        raw_id: An arXiv id (``2603.09022``), a versioned id
+            (``2603.09022v2``) or a full abs/pdf URL.
+
+    Returns:
+        Tuple of (pid with any version suffix, base_id without version
+        suffix for the filename, the canonical pdf URL).
+    """
+    pid = raw_id.strip()
+    for prefix in _ARXIV_URL_PREFIXES:
+        if pid.startswith(prefix):
+            pid = pid.split(prefix)[-1].rstrip("/")
+            break
+    if pid.endswith(".pdf"):
+        pid = pid[: -len(".pdf")]
+    # Strip version suffix for filename, keep it for the URL.
+    base_id = pid.split("v")[0] if "v" in pid and pid[-1].isdigit() else pid
+    pdf_url = f"https://arxiv.org/pdf/{pid}"
+    return pid, base_id, pdf_url
+
 
 def _create_provider(source: PaperSource, config: SourceConfig) -> PaperProvider:
     """Factory to create a provider instance for a given source."""
@@ -234,6 +270,138 @@ class ScholarXClient:
         """
         path = await self.storage.download_paper(paper)
         return str(path) if path else None
+
+    async def download_papers(
+        self,
+        papers: list[Paper],
+        *,
+        concurrency: int = 0,
+    ) -> list[dict]:
+        """Download many papers in parallel with bounded concurrency.
+
+        Mirrors the ``asyncio.gather`` fan-out used by ``search``/``get_recent``.
+        Each ``PaperStorage.download_paper`` call opens its own httpx client and
+        writes to a distinct destination path, so concurrent calls are safe.
+
+        Args:
+            papers: Papers to download.
+            concurrency: Max simultaneous downloads. ``0`` auto-sizes to
+                :data:`ARXIV_DOWNLOAD_CONCURRENCY`.
+
+        Returns:
+            One result dict per paper, preserving input order, with keys
+            ``paper_id``, ``status`` ('downloaded' | 'cached' | 'failed') and
+            either ``local_path`` or ``error``.
+        """
+        limit = concurrency if concurrency > 0 else ARXIV_DOWNLOAD_CONCURRENCY
+        semaphore = asyncio.Semaphore(limit)
+
+        async def _one(paper: Paper) -> dict:
+            async with semaphore:
+                # Detect a pre-existing local copy so we can report 'cached'
+                # rather than 'downloaded' without re-fetching.
+                cached = self.storage.get_local_path(paper.id)
+                if cached and cached.exists():
+                    return {
+                        "paper_id": paper.id,
+                        "status": "cached",
+                        "local_path": str(cached),
+                    }
+                path = await self.storage.download_paper(paper)
+                if path:
+                    return {
+                        "paper_id": paper.id,
+                        "status": "downloaded",
+                        "local_path": str(path),
+                    }
+                return {
+                    "paper_id": paper.id,
+                    "status": "failed",
+                    "error": "Download failed or returned None",
+                }
+
+        raw = await asyncio.gather(
+            *[_one(p) for p in papers],
+            return_exceptions=True,
+        )
+
+        results: list[dict] = []
+        for paper, item in zip(papers, raw, strict=True):
+            if isinstance(item, dict):
+                results.append(item)
+            else:
+                results.append(
+                    {
+                        "paper_id": paper.id,
+                        "status": "failed",
+                        "error": str(item),
+                    }
+                )
+        return results
+
+    async def download_urls(
+        self,
+        raw_ids: list[str],
+        *,
+        concurrency: int = 0,
+    ) -> list[dict]:
+        """Download arXiv PDFs directly by id/URL with bounded concurrency.
+
+        Bypasses the arXiv metadata API entirely. A single shared
+        ``httpx.AsyncClient`` is used across the whole batch. Already-stored
+        PDFs are skipped via ``dest.exists()``.
+
+        Args:
+            raw_ids: arXiv ids (``2603.09022``), versioned ids or full
+                abs/pdf URLs.
+            concurrency: Max simultaneous downloads. ``0`` auto-sizes to
+                :data:`ARXIV_DOWNLOAD_CONCURRENCY`.
+
+        Returns:
+            One result dict per id, preserving input order, with keys
+            ``paper_id``, ``status`` ('downloaded' | 'cached' | 'failed') and
+            either ``local_path`` (+ ``size_bytes``) or ``error``.
+        """
+        import httpx
+
+        ids = [r.strip() for r in raw_ids if r and r.strip()]
+        limit = concurrency if concurrency > 0 else ARXIV_DOWNLOAD_CONCURRENCY
+        semaphore = asyncio.Semaphore(limit)
+
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(120.0, connect=30.0),
+            follow_redirects=True,
+        ) as http:
+
+            async def _one(raw_id: str) -> dict:
+                pid, base_id, pdf_url = _normalize_arxiv_id(raw_id)
+                dest = self.storage.storage_dir / f"{base_id}.pdf"
+                if dest.exists():
+                    return {"paper_id": pid, "status": "cached", "local_path": str(dest)}
+                async with semaphore:
+                    resp = await http.get(pdf_url)
+                    resp.raise_for_status()
+                    dest.write_bytes(resp.content)
+                    return {
+                        "paper_id": pid,
+                        "status": "downloaded",
+                        "local_path": str(dest),
+                        "size_bytes": len(resp.content),
+                    }
+
+            raw = await asyncio.gather(
+                *[_one(r) for r in ids],
+                return_exceptions=True,
+            )
+
+        results: list[dict] = []
+        for raw_id, item in zip(ids, raw, strict=True):
+            if isinstance(item, dict):
+                results.append(item)
+            else:
+                pid, _, _ = _normalize_arxiv_id(raw_id)
+                results.append({"paper_id": pid, "status": "failed", "error": str(item)})
+        return results
 
     def queue_download(self, paper: Paper) -> str:
         """Queue a paper for background downloading.

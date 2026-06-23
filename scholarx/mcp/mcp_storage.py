@@ -80,73 +80,67 @@ def register_storage_tools(mcp):
         if action == "download_url":
             # Direct URL-based download — bypasses the arXiv API entirely.
             # Accepts paper_ids as arXiv IDs (e.g. "2603.09022") or full URLs
-            # (e.g. "https://arxiv.org/abs/2603.09022").
+            # (e.g. "https://arxiv.org/abs/2603.09022"). Downloads run in
+            # parallel with bounded concurrency inside the client.
             if not paper_ids:
                 return {"error": "'paper_ids' required for 'download_url' action"}
-            from typing import Any
-
-            results: list[dict[str, Any]] = []
-            for raw_id in [i.strip() for i in paper_ids.split(",") if i.strip()]:
-                # Extract arXiv ID from URL if provided
-                pid = raw_id
-                for prefix in ("https://arxiv.org/abs/", "https://arxiv.org/pdf/", "http://arxiv.org/abs/"):
-                    if raw_id.startswith(prefix):
-                        pid = raw_id.split(prefix)[-1].rstrip("/")
-                        break
-                # Strip version suffix for filename, keep for URL
-                base_id = pid.split("v")[0] if "v" in pid and pid[-1].isdigit() else pid
-                pdf_url = f"https://arxiv.org/pdf/{pid}"
-                dest = client.storage.storage_dir / f"{base_id}.pdf"
-                if dest.exists():
-                    results.append({"paper_id": pid, "status": "already_exists", "local_path": str(dest)})
-                    continue
-                try:
-                    import httpx as _httpx
-
-                    async with _httpx.AsyncClient(
-                        timeout=_httpx.Timeout(120.0, connect=30.0),
-                        follow_redirects=True,
-                    ) as http:
-                        resp = await http.get(pdf_url)
-                        resp.raise_for_status()
-                        dest.write_bytes(resp.content)
-                        results.append(
-                            {
-                                "paper_id": pid,
-                                "status": "downloaded",
-                                "local_path": str(dest),
-                                "size_bytes": len(resp.content),
-                            }
-                        )
-                except Exception as e:
-                    results.append({"paper_id": pid, "status": "failed", "error": str(e)})
+            raw_ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
+            results = await client.download_urls(raw_ids)
             return {"results": results}
 
         if action == "bulk_download":
             if not source or not paper_ids:
                 return {"error": "'source' and 'paper_ids' required for 'bulk_download' action"}
             ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
-            results = []
-            stored = await run_blocking(client.storage.list_stored_papers)
-            for pid in ids:
-                # Check local storage first
-                already_exists = False
-                for p in stored:
-                    if p.get("source") == source and (pid == p.get("id") or pid in p.get("id", "")):
-                        local_path = p.get("local_path")
-                        if local_path and __import__("pathlib").Path(local_path).exists():
-                            results.append({"paper_id": pid, "status": "already_exists", "local_path": local_path})
-                            already_exists = True
-                            break
-                if already_exists:
-                    continue
 
-                paper = await client.get_paper(PaperSource(source), pid)
-                if not paper:
-                    results.append({"paper_id": pid, "status": "failed", "error": "Paper not found"})
+            # Build the stored-paper index ONCE (set of ids + id→path map)
+            # to avoid an O(N×stored) inner scan per requested id.
+            stored = await run_blocking(client.storage.list_stored_papers)
+            stored_paths: dict[str, str] = {}
+            for p in stored:
+                if p.get("source") != source:
                     continue
-                jid = await run_blocking(client.queue_download, paper)
-                results.append({"paper_id": pid, "status": "queued", "job_id": jid})
+                local_path = p.get("local_path")
+                if local_path and __import__("pathlib").Path(local_path).exists():
+                    stored_paths[p.get("id", "")] = local_path
+
+            def _cached_path(pid: str) -> str | None:
+                if pid in stored_paths:
+                    return stored_paths[pid]
+                # Fall back to substring match (some ids are stored with prefixes).
+                for sid, path in stored_paths.items():
+                    if pid in sid:
+                        return path
+                return None
+
+            results = []
+            uncached_ids: list[str] = []
+            for pid in ids:
+                cached = _cached_path(pid)
+                if cached:
+                    results.append({"paper_id": pid, "status": "cached", "local_path": cached})
+                else:
+                    uncached_ids.append(pid)
+
+            # Resolve uncached papers' metadata concurrently.
+            import asyncio
+
+            resolved_pairs = await asyncio.gather(
+                *[client.get_paper(PaperSource(source), pid) for pid in uncached_ids],
+                return_exceptions=True,
+            )
+
+            to_download = []
+            for pid, paper in zip(uncached_ids, resolved_pairs, strict=True):
+                if isinstance(paper, Exception):
+                    results.append({"paper_id": pid, "status": "failed", "error": str(paper)})
+                elif paper is None:
+                    results.append({"paper_id": pid, "status": "failed", "error": "Paper not found"})
+                else:
+                    to_download.append(paper)
+
+            if to_download:
+                results.extend(await client.download_papers(to_download))
             return {"results": results}
 
         # resolve_action guarantees a valid canonical action above.
