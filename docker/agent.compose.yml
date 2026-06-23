@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   scholarx-mcp:
-    image: knucklessg1/scholarx:latest
+    image: knucklessg1/scholarx:mcp
     container_name: scholarx-mcp
     hostname: scholarx-mcp
     restart: always
