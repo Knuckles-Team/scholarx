@@ -335,6 +335,59 @@ Built directly upon the enterprise-ready [`agent-utilities`](https://github.com/
 
 ## Environment Variables
 
+<!-- ENV-VARS-TABLE:START -->
+
+#### Package environment variables
+
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `HOST` | `0.0.0.0` |  |
+| `PORT` | `8004` |  |
+| `TRANSPORT` | `stdio` | options: stdio, streamable-http, sse |
+| `AUTH_TYPE` | `none` | options: none, basic, custom |
+| `DEFAULT_AGENT_NAME` | `ScholarX Agent` |  |
+| `ENABLE_OTEL` | `True` |  |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:8080/api/public/otel` |  |
+| `OTEL_EXPORTER_OTLP_PUBLIC_KEY` | `pk-...` |  |
+| `OTEL_EXPORTER_OTLP_SECRET_KEY` | `sk-...` |  |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` |  |
+| `EUNOMIA_TYPE` | `none` | options: none, embedded, remote |
+| `EUNOMIA_POLICY_FILE` | `mcp_policies.json` |  |
+| `EUNOMIA_REMOTE_URL` | `http://eunomia-server:8000` |  |
+| `SCHOLARX_STORAGE_DIR` | — | Custom storage dir (default: ~/.scholarx/papers) |
+| `DEBUG` | `False` |  |
+| `PYTHONUNBUFFERED` | `1` |  |
+| `SERVICENOW_INSTANCE` | `https://dev350360.service-now.com` |  |
+| `SERVICENOW_USERNAME` | `admin` |  |
+| `OSF_TOKEN` | `your_osf_token_here` |  |
+| `S2_API_KEY` | `your_s2_api_key_here` |  |
+| `NCBI_API_KEY` | `your_ncbi_api_key_here` |  |
+| `SERVICENOW_PASSWORD` | `your_servicenow_password_here` |  |
+| `SEARCHTOOL` | `True` |  |
+| `DISCOVERYTOOL` | `True` |  |
+| `STORAGETOOL` | `True` |  |
+
+#### Inherited agent-utilities variables (apply to every connector)
+
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `MCP_TOOL_MODE` | `condensed` | Tool surface: `condensed` | `verbose` | `both` |
+| `MCP_ENABLED_TOOLS` | — | Comma-separated tool allow-list |
+| `MCP_DISABLED_TOOLS` | — | Comma-separated tool deny-list |
+| `MCP_ENABLED_TAGS` | — | Comma-separated tag allow-list |
+| `MCP_DISABLED_TAGS` | — | Comma-separated tag deny-list |
+| `MCP_CLIENT_AUTH` | — | Outbound MCP auth (`oidc-client-credentials` for fleet calls) |
+| `OIDC_CLIENT_ID` | — | OIDC client id (service-account auth) |
+| `OIDC_CLIENT_SECRET` | — | OIDC client secret (service-account auth) |
+| `MCP_URL` | `http://localhost:8000/mcp` | URL of the MCP server the agent connects to |
+| `PROVIDER` | `openai` | LLM provider for the agent |
+| `MODEL_ID` | `gpt-4o` | Model id for the agent |
+| `ENABLE_WEB_UI` | `True` | Serve the AG-UI web interface |
+
+_25 package + 12 inherited variable(s). Auto-generated from `.env.example` + the shared agent-utilities set — do not edit._
+<!-- ENV-VARS-TABLE:END -->
+
+
 The application can be configured using the following environment variables:
 
 | Variable | Type | Default | Description |
