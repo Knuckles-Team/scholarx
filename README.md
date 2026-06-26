@@ -61,13 +61,36 @@ The table below is auto-generated from the MCP server — do not edit by hand.
 
 <!-- MCP-TOOLS-TABLE:START -->
 
+#### Condensed action-routed tools (default — `MCP_TOOL_MODE=condensed`)
+
 | MCP Tool | Toggle Env Var | Description |
 |----------|----------------|-------------|
 | `sx_info` | `DISCOVERYTOOL` | Get metadata about sources and categories. |
 | `sx_search` | `SEARCHTOOL` | Search for research papers across all configured sources. |
 | `sx_storage` | `STORAGETOOL` | Manage offline PDF storage and background downloads. |
 
-_3 action-routed tools (default `MCP_TOOL_MODE=condensed`). Each is enabled unless its toggle is set false; set `MCP_TOOL_MODE=verbose` (or `both`) for the 1:1 per-operation surface. Auto-generated — do not edit._
+#### Verbose 1:1 API-mapped tools (`MCP_TOOL_MODE=verbose` or `both`)
+
+<details>
+<summary>11 per-operation tools — one per public API method (click to expand)</summary>
+
+| MCP Tool | Toggle Env Var | Description |
+|----------|----------------|-------------|
+| `scholarx_download_paper` | `SCHOLAR_X_CLIENTTOOL` | Download a paper's full PDF synchronously. |
+| `scholarx_download_papers` | `SCHOLAR_X_CLIENTTOOL` | Download many papers in parallel with bounded concurrency. |
+| `scholarx_download_urls` | `SCHOLAR_X_CLIENTTOOL` | Download arXiv PDFs directly by id/URL with bounded concurrency. |
+| `scholarx_get_download_status` | `SCHOLAR_X_CLIENTTOOL` | Get the status of a queued download job. |
+| `scholarx_get_paper` | `SCHOLAR_X_CLIENTTOOL` | Retrieve a single paper from a specific source. |
+| `scholarx_get_queue_status` | `SCHOLAR_X_CLIENTTOOL` | Get the status of all queued downloads. |
+| `scholarx_get_recent_papers` | `SCHOLAR_X_CLIENTTOOL` | Retrieve recently published papers. |
+| `scholarx_get_source_status` | `SCHOLAR_X_CLIENTTOOL` | Get the status of all configured sources. |
+| `scholarx_list_categories` | `SCHOLAR_X_CLIENTTOOL` | List available categories for each source. |
+| `scholarx_queue_download` | `SCHOLAR_X_CLIENTTOOL` | Queue a paper for background downloading. |
+| `scholarx_search` | `SCHOLAR_X_CLIENTTOOL` | Search across all configured sources with deduplication. |
+
+</details>
+
+_3 action-routed tool(s) (default) · 11 verbose 1:1 tool(s). Each is enabled unless its `<DOMAIN>TOOL` toggle is set false; `MCP_TOOL_MODE` selects the surface (`condensed` default · `verbose` 1:1 · `both`). Auto-generated — do not edit._
 <!-- MCP-TOOLS-TABLE:END -->
 
 Detailed tool schemas, parameter shapes, and validation constraints are preserved in [docs/mcp.md](docs/mcp.md).
@@ -354,15 +377,11 @@ Built directly upon the enterprise-ready [`agent-utilities`](https://github.com/
 | `EUNOMIA_TYPE` | `none` | options: none, embedded, remote |
 | `EUNOMIA_POLICY_FILE` | `mcp_policies.json` |  |
 | `EUNOMIA_REMOTE_URL` | `http://eunomia-server:8000` |  |
-| `SCHOLARX_STORAGE_DIR` | — | Custom storage dir (default: ~/.scholarx/papers) |
 | `DEBUG` | `False` |  |
 | `PYTHONUNBUFFERED` | `1` |  |
-| `SERVICENOW_INSTANCE` | `https://dev350360.service-now.com` |  |
-| `SERVICENOW_USERNAME` | `admin` |  |
-| `OSF_TOKEN` | `your_osf_token_here` |  |
-| `S2_API_KEY` | `your_s2_api_key_here` |  |
-| `NCBI_API_KEY` | `your_ncbi_api_key_here` |  |
-| `SERVICENOW_PASSWORD` | `your_servicenow_password_here` |  |
+| `OSF_TOKEN` | `your_osf_token_here` | OSF / PsyArXiv |
+| `S2_API_KEY` | `your_s2_api_key_here` | Semantic Scholar |
+| `NCBI_API_KEY` | `your_ncbi_api_key_here` | PubMed Central (NCBI E-utilities) |
 | `SEARCHTOOL` | `True` |  |
 | `DISCOVERYTOOL` | `True` |  |
 | `STORAGETOOL` | `True` |  |
@@ -384,7 +403,7 @@ Built directly upon the enterprise-ready [`agent-utilities`](https://github.com/
 | `MODEL_ID` | `gpt-4o` | Model id for the agent |
 | `ENABLE_WEB_UI` | `True` | Serve the AG-UI web interface |
 
-_25 package + 12 inherited variable(s). Auto-generated from `.env.example` + the shared agent-utilities set — do not edit._
+_21 package + 12 inherited variable(s). Auto-generated from `.env.example` + the shared agent-utilities set — do not edit._
 <!-- ENV-VARS-TABLE:END -->
 
 
