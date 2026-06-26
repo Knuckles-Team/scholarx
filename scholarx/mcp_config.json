@@ -7,6 +7,7 @@
         "scholarx-mcp"
       ],
       "env": {
+        "MCP_TOOL_MODE": "condensed",
         "SEARCHTOOL": "True",
         "DISCOVERYTOOL": "True",
         "STORAGETOOL": "True",
@@ -15,10 +16,7 @@
         "NCBI_API_KEY": "${NCBI_API_KEY}",
         "AGENT_DESCRIPTION": "<YOUR_AGENT_DESCRIPTION>",
         "AGENT_SYSTEM_PROMPT": "<YOUR_AGENT_SYSTEM_PROMPT>",
-        "DEFAULT_AGENT_NAME": "<YOUR_DEFAULT_AGENT_NAME>",
-        "BATCH_PROCESSING": "True",
-        "RATE_LIMIT_BACKOFF_FACTOR": "2.0",
-        "MAX_RETRIES": "5"
+        "DEFAULT_AGENT_NAME": "<YOUR_DEFAULT_AGENT_NAME>"
       }
     }
   }
