@@ -21,7 +21,7 @@ from pydantic import Field
 
 load_config()
 
-__version__ = "0.30.0"
+__version__ = "1.0.0"
 
 # Wall budget for an inline single-paper download before it is handed to the
 # background queue. Kept well under the MCP child-call timeout so a slow source
