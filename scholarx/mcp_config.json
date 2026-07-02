@@ -8,15 +8,12 @@
       ],
       "env": {
         "MCP_TOOL_MODE": "condensed",
-        "SEARCHTOOL": "True",
         "DISCOVERYTOOL": "True",
-        "STORAGETOOL": "True",
-        "OSF_TOKEN": "${OSF_TOKEN}",
-        "S2_API_KEY": "${S2_API_KEY}",
-        "NCBI_API_KEY": "${NCBI_API_KEY}",
-        "AGENT_DESCRIPTION": "<YOUR_AGENT_DESCRIPTION>",
-        "AGENT_SYSTEM_PROMPT": "<YOUR_AGENT_SYSTEM_PROMPT>",
-        "DEFAULT_AGENT_NAME": "<YOUR_DEFAULT_AGENT_NAME>"
+        "NCBI_API_KEY": "your_ncbi_api_key_here",
+        "OSF_TOKEN": "your_osf_token_here",
+        "S2_API_KEY": "your_s2_api_key_here",
+        "SEARCHTOOL": "True",
+        "STORAGETOOL": "True"
       }
     }
   }

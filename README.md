@@ -118,21 +118,20 @@ When query strings or parameters are supplied, an LLM-free **Knowledge Graph res
 
 ### MCP Configuration Examples
 
-> **Install the slim `[mcp]` extra.** All examples below install
-> `scholarx[mcp]` — the MCP-server extra that pulls only the FastMCP /
-> FastAPI tooling (`agent-utilities[mcp]`). It deliberately **excludes** the heavy
-> agent runtime (the epistemic-graph engine, `pydantic-ai`, `dspy`, `llama-index`,
-> `tree-sitter`), so `uvx`/container installs are dramatically smaller and faster.
-> Use the full `[agent]` extra only when you need the integrated Pydantic AI agent
-> (see [Installation](#installation)).
+<!-- MCP-CONFIG-EXAMPLES:START -->
 
-#### stdio Transport (Recommended for local IDEs e.g., Cursor, Claude Desktop)
-Configure your IDE's `mcp.json` to launch the MCP server via `uvx`:
+> **Install the slim `[mcp]` extra.** All examples install `scholarx[mcp]` — the
+> MCP-server extra that pulls only the FastMCP / FastAPI tooling (`agent-utilities[mcp]`).
+> It deliberately **excludes** the heavy agent runtime (`pydantic-ai`, the epistemic-graph
+> engine, `dspy`, `llama-index`), so `uvx` / container installs are far smaller. Use the
+> full `[agent]` extra only when you need the integrated Pydantic AI agent.
+
+#### stdio Transport (local IDEs — Cursor, Claude Desktop, VS Code)
 
 ```json
 {
   "mcpServers": {
-    "scholarx": {
+    "scholarx-mcp": {
       "command": "uvx",
       "args": [
         "--from",
@@ -140,60 +139,59 @@ Configure your IDE's `mcp.json` to launch the MCP server via `uvx`:
         "scholarx-mcp"
       ],
       "env": {
-        "SCHOLARX_STORAGE_DIR": "your_scholarx_storage_dir_here",
-        "DEBUG": "your_debug_here",
-        "PYTHONUNBUFFERED": "your_pythonunbuffered_here",
-        "SERVICENOW_INSTANCE": "your_servicenow_instance_here",
-        "SERVICENOW_USERNAME": "your_servicenow_username_here",
+        "MCP_TOOL_MODE": "condensed",
+        "DISCOVERYTOOL": "True",
+        "NCBI_API_KEY": "your_ncbi_api_key_here",
         "OSF_TOKEN": "your_osf_token_here",
         "S2_API_KEY": "your_s2_api_key_here",
-        "NCBI_API_KEY": "your_ncbi_api_key_here",
-        "SERVICENOW_PASSWORD": "your_servicenow_password_here"
+        "SEARCHTOOL": "True",
+        "STORAGETOOL": "True"
       }
     }
   }
 }
 ```
 
-#### Streamable-HTTP Transport (Recommended for production deployments)
-Configure your client's `mcp.json` to launch the Streamable-HTTP server via `uvx` with explicit host and port definition:
+#### Streamable-HTTP Transport (networked / production)
 
 ```json
 {
   "mcpServers": {
-    "scholarx": {
+    "scholarx-mcp": {
       "command": "uvx",
       "args": [
         "--from",
         "scholarx[mcp]",
-        "scholarx-mcp"
+        "scholarx-mcp",
+        "--transport",
+        "streamable-http",
+        "--port",
+        "8000"
       ],
       "env": {
         "TRANSPORT": "streamable-http",
         "HOST": "0.0.0.0",
         "PORT": "8000",
-        "SCHOLARX_STORAGE_DIR": "your_scholarx_storage_dir_here",
-        "DEBUG": "your_debug_here",
-        "PYTHONUNBUFFERED": "your_pythonunbuffered_here",
-        "SERVICENOW_INSTANCE": "your_servicenow_instance_here",
-        "SERVICENOW_USERNAME": "your_servicenow_username_here",
+        "MCP_TOOL_MODE": "condensed",
+        "DISCOVERYTOOL": "True",
+        "NCBI_API_KEY": "your_ncbi_api_key_here",
         "OSF_TOKEN": "your_osf_token_here",
         "S2_API_KEY": "your_s2_api_key_here",
-        "NCBI_API_KEY": "your_ncbi_api_key_here",
-        "SERVICENOW_PASSWORD": "your_servicenow_password_here"
+        "SEARCHTOOL": "True",
+        "STORAGETOOL": "True"
       }
     }
   }
 }
 ```
 
-Alternatively, connect to a pre-deployed remote or local Streamable-HTTP instance:
+Alternatively, connect to a pre-deployed Streamable-HTTP instance by `url`:
 
 ```json
 {
   "mcpServers": {
-    "scholarx": {
-      "url": "http://localhost:8004/scholarx/mcp"
+    "scholarx-mcp": {
+      "url": "http://localhost:8000/scholarx-mcp/mcp"
     }
   }
 }
@@ -203,30 +201,23 @@ Deploying the Streamable-HTTP server via Docker:
 
 ```bash
 docker run -d \
-  --name scholarx-mcp \
-  -p 8004:8004 \
+  --name scholarx-mcp-mcp \
+  -p 8000:8000 \
   -e TRANSPORT=streamable-http \
-  -e PORT=8004 \
-  -e SCHOLARX_STORAGE_DIR="your_value" \
-  -e DEBUG="your_value" \
-  -e PYTHONUNBUFFERED="your_value" \
-  -e SERVICENOW_INSTANCE="your_value" \
-  -e SERVICENOW_USERNAME="your_value" \
-  -e OSF_TOKEN="your_value" \
-  -e S2_API_KEY="your_value" \
-  -e NCBI_API_KEY="your_value" \
-  -e SERVICENOW_PASSWORD="your_value" \
+  -e HOST=0.0.0.0 \
+  -e PORT=8000 \
+  -e MCP_TOOL_MODE=condensed \
+  -e DISCOVERYTOOL=True \
+  -e NCBI_API_KEY=your_ncbi_api_key_here \
+  -e OSF_TOKEN=your_osf_token_here \
+  -e S2_API_KEY=your_s2_api_key_here \
+  -e SEARCHTOOL=True \
+  -e STORAGETOOL=True \
   knucklessg1/scholarx:mcp
 ```
 
-> The `:mcp` tag is the **slim MCP-server image** (built from
-> `docker/Dockerfile --target mcp`, installing `scholarx[mcp]`). The default
-> `:latest` tag is the **full agent image** (`--target agent`, `scholarx[agent]`)
-> which also bundles the Pydantic AI agent and the epistemic-graph engine — use it
-> when you run `scholarx-agent` (the agent), not just the MCP server. See
-> [Container images](#container-images-mcp-vs-agent).
-
----
+_Auto-generated from the code-read env surface (`MCP_TOOL_MODE` + package vars) — do not edit._
+<!-- MCP-CONFIG-EXAMPLES:END -->
 
 <!-- BEGIN GENERATED: additional-deployment-options -->
 ### Additional Deployment Options
