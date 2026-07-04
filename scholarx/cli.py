@@ -696,7 +696,7 @@ def cli():
 def _run_auto_analysis(args: argparse.Namespace) -> None:
     """Run comparative-analysis innovation extraction on relevant papers.
 
-    CONCEPT:SX-1.4 — Chains the comparative-analysis extract_innovations.py
+    CONCEPT:SX-OS.scaling.chains-comparative-analysis-extract — Chains the comparative-analysis extract_innovations.py
     script on papers with score >= 3.0 against the target project codebases.
     """
     import subprocess
@@ -751,7 +751,7 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
 
     console.print(
         Panel.fit(
-            f"[bold magenta]🔬 Innovation Extraction (CONCEPT:SX-1.4)[/bold magenta]\n"
+            f"[bold magenta]🔬 Innovation Extraction (CONCEPT:SX-OS.scaling.chains-comparative-analysis-extract)[/bold magenta]\n"
             f"Papers: [green]{len(paper_mds)}[/green] (top {max_papers} by relevance)\n"
             f"Targets: [cyan]{', '.join(t.name for t in targets)}[/cyan]\n"
             f"Extractor: [dim]{extractor}[/dim]",

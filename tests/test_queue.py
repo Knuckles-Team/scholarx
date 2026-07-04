@@ -15,7 +15,7 @@ def mock_rate_limit_delay():
         yield mock_sleep
 
 
-@pytest.mark.concept("SX-1.6")
+@pytest.mark.concept("SX-OS.config.sx-6")
 def test_queue_lifecycle_success():
     mock_paper = Paper(
         id="arxiv:test-queue-1", title="Queue Success Paper", authors=["Alice"], source=PaperSource.ARXIV
@@ -42,7 +42,7 @@ def test_queue_lifecycle_success():
     assert job_status["paper_id"] == "arxiv:test-queue-1"
 
 
-@pytest.mark.concept("SX-1.6")
+@pytest.mark.concept("SX-OS.config.sx-6")
 def test_queue_lifecycle_failure():
     mock_paper = Paper(id="arxiv:test-queue-2", title="Queue Failure Paper", authors=["Bob"], source=PaperSource.ARXIV)
 
@@ -65,7 +65,7 @@ def test_queue_lifecycle_failure():
     assert job_status["paper_id"] == "arxiv:test-queue-2"
 
 
-@pytest.mark.concept("SX-1.6")
+@pytest.mark.concept("SX-OS.config.sx-6")
 def test_queue_lifecycle_exception():
     mock_paper = Paper(
         id="arxiv:test-queue-3", title="Queue Exception Paper", authors=["Charlie"], source=PaperSource.ARXIV
@@ -90,7 +90,7 @@ def test_queue_lifecycle_exception():
     assert job_status["paper_id"] == "arxiv:test-queue-3"
 
 
-@pytest.mark.concept("SX-1.6")
+@pytest.mark.concept("SX-OS.config.sx-6")
 def test_queue_job_not_found():
     # If a job is put in the queue but is not registered in BACKGROUND_DOWNLOADS,
     # it should just skip and proceed.
@@ -108,11 +108,11 @@ def test_queue_job_not_found():
     assert job_id not in BACKGROUND_DOWNLOADS
 
 
-@pytest.mark.concept("SX-1.6")
+@pytest.mark.concept("SX-OS.config.sx-6")
 def test_queue_pool_drains_many_jobs_with_bounded_concurrency(monkeypatch):
     """Enqueue many jobs; assert ALL reach a terminal status, the queue
     drains via join(), and the in-flight count never exceeds POOL_SIZE.
-    (CONCEPT:SX-1.6)"""
+    (CONCEPT:SX-OS.config.sx-6)"""
     import scholarx.queue as q
 
     # Make the shared rate gate permissive so we exercise pool concurrency
@@ -163,10 +163,10 @@ def test_queue_pool_drains_many_jobs_with_bounded_concurrency(monkeypatch):
     assert state["max_in_flight"] >= 2  # proves true parallelism, not serial
 
 
-@pytest.mark.concept("SX-1.6")
+@pytest.mark.concept("SX-OS.config.sx-6")
 def test_rate_gate_throttles_starts(monkeypatch):
     """The shared monotonic rate gate enforces a minimum interval between
-    job starts across the pool. (CONCEPT:SX-1.6)"""
+    job starts across the pool. (CONCEPT:SX-OS.config.sx-6)"""
     import scholarx.queue as q
 
     # Use real time.sleep (the autouse fixture stubs scholarx.queue.time.sleep).

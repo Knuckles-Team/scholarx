@@ -3,7 +3,7 @@
 A pool of worker threads drains a shared :data:`JOB_QUEUE`. Politeness toward
 upstream mirrors is enforced by a single shared monotonic min-interval rate
 gate (one job *start* every ``_MIN_START_INTERVAL`` seconds across the whole
-pool) rather than by serializing a flat sleep per worker. (CONCEPT:SX-1.6)
+pool) rather than by serializing a flat sleep per worker. (CONCEPT:SX-OS.config.sx-6)
 """
 
 import asyncio
@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 BACKGROUND_DOWNLOADS: dict[str, dict] = {}
 JOB_QUEUE: queue.Queue = queue.Queue()
 
-# Number of worker threads draining JOB_QUEUE in parallel. (CONCEPT:SX-1.6)
+# Number of worker threads draining JOB_QUEUE in parallel. (CONCEPT:SX-OS.config.sx-6)
 POOL_SIZE = 4
 
 # Shared monotonic min-interval rate gate: at most one job *start* per this
 # many seconds across the entire pool. Keeps upstream politeness without each
-# worker serializing on a flat per-job sleep. (CONCEPT:SX-1.6)
+# worker serializing on a flat per-job sleep. (CONCEPT:SX-OS.config.sx-6)
 _MIN_START_INTERVAL = 0.5
 _rate_lock = threading.Lock()
 _last_start_time: float = 0.0
@@ -31,7 +31,7 @@ _last_start_time: float = 0.0
 
 def _rate_gate() -> None:
     """Block until at least ``_MIN_START_INTERVAL`` has elapsed since the last
-    job start across the pool, then claim this start slot. (CONCEPT:SX-1.6)"""
+    job start across the pool, then claim this start slot. (CONCEPT:SX-OS.config.sx-6)"""
     global _last_start_time
     while True:
         with _rate_lock:
@@ -46,7 +46,7 @@ def _rate_gate() -> None:
 def _download_worker():
     """Background worker that processes download jobs from the shared queue.
 
-    Multiple instances run concurrently (one per pool thread). (CONCEPT:SX-1.6)
+    Multiple instances run concurrently (one per pool thread). (CONCEPT:SX-OS.config.sx-6)
     """
     logger.info("Starting ScholarX background download worker...")
     while True:
@@ -93,7 +93,7 @@ def _download_worker():
 
 
 # Initialize the daemon worker pool globally so it's ready when the module
-# loads. (CONCEPT:SX-1.6)
+# loads. (CONCEPT:SX-OS.config.sx-6)
 _worker_threads: list[threading.Thread] = []
 for _i in range(POOL_SIZE):
     _t = threading.Thread(target=_download_worker, daemon=True, name=f"scholarx-download-{_i}")

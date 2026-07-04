@@ -1,19 +1,19 @@
 """Tests for ScholarX CLI and relevance scoring.
 
 Covers:
-- CONCEPT:SX-1.0 CLI — scan and status commands
-- CONCEPT:SX-1.1 Relevance Scoring — 9-domain weighted taxonomy
-- CONCEPT:SX-1.3 Storage Dedup — skips already-downloaded PDFs
-- CONCEPT:SX-1.4 Auto-Analysis — --analyze flag behavior
+- CONCEPT:SX-OS.config.sx CLI — scan and status commands
+- CONCEPT:SX-OS.config.sx-2 Relevance Scoring — 9-domain weighted taxonomy
+- CONCEPT:SX-OS.config.sx-4 Storage Dedup — skips already-downloaded PDFs
+- CONCEPT:SX-OS.scaling.chains-comparative-analysis-extract Auto-Analysis — --analyze flag behavior
 """
 
 from scholarx.cli import DEFAULT_TAXONOMY, generate_synergy_report, score_paper
 
-# ── CONCEPT:SX-1.1 Relevance Scoring ────────────────────────────────────────
+# ── CONCEPT:SX-OS.config.sx-2 Relevance Scoring ────────────────────────────────────────
 
 
 class TestScorePaper:
-    """Tests for the relevance scoring engine (CONCEPT:SX-1.1)."""
+    """Tests for the relevance scoring engine (CONCEPT:SX-OS.config.sx-2)."""
 
     def test_highly_relevant_paper(self):
         """A paper about multi-agent orchestration should score highly in orchestration domain."""
@@ -100,11 +100,11 @@ class TestScorePaper:
         assert score["verdict"] in ("relevant", "marginal", "irrelevant")
 
 
-# ── CONCEPT:SX-1.0 CLI / Synergy Report ─────────────────────────────────────
+# ── CONCEPT:SX-OS.config.sx CLI / Synergy Report ─────────────────────────────────────
 
 
 class TestSynergyReport:
-    """Tests for synergy report generation (CONCEPT:SX-1.0)."""
+    """Tests for synergy report generation (CONCEPT:SX-OS.config.sx)."""
 
     def test_generate_synergy_report(self, tmp_path):
         """Should produce a valid markdown synergy report."""
@@ -152,11 +152,11 @@ class TestSynergyReport:
         assert "Papers Accepted**: 0" in content
 
 
-# ── CONCEPT:SX-1.0 CLI Argument Parsing ─────────────────────────────────────
+# ── CONCEPT:SX-OS.config.sx CLI Argument Parsing ─────────────────────────────────────
 
 
 class TestCLIParsing:
-    """Tests for CLI argument parsing (CONCEPT:SX-1.0)."""
+    """Tests for CLI argument parsing (CONCEPT:SX-OS.config.sx)."""
 
     def test_scan_command_defaults(self):
         """Scan command should have sensible defaults."""

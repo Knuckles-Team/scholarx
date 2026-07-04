@@ -70,7 +70,7 @@ def _title_similarity(a: str, b: str) -> float:
 
 
 def deduplicate_papers(papers: list[Paper], threshold: float = 0.90) -> tuple[list[Paper], int]:
-    """Deduplicate papers across sources. (CONCEPT:SX-1.2)
+    """Deduplicate papers across sources. (CONCEPT:SX-OS.config.sx-3)
 
     Args:
         papers: List of papers potentially containing duplicates.
@@ -146,7 +146,7 @@ def deduplicate_papers(papers: list[Paper], threshold: float = 0.90) -> tuple[li
 
 
 def _merge_papers(existing: Paper, new: Paper) -> Paper:
-    """Merge metadata from a duplicate paper into the existing one. (CONCEPT:SX-1.2)
+    """Merge metadata from a duplicate paper into the existing one. (CONCEPT:SX-OS.config.sx-3)
 
     Prefers the paper with more complete metadata. Fills in missing fields.
     """

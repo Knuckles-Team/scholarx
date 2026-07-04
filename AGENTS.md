@@ -3,20 +3,20 @@
 > Claude Code loads this file via `CLAUDE.md` (`@AGENTS.md` import) — the two stay
 > in sync. Edit **this** file, not `CLAUDE.md`.
 
-<!-- CONCEPT:SX-1.0 CLI — Rich terminal interface with progress bars, scan/status commands -->
-<!-- CONCEPT:SX-1.1 Relevance Scoring — Delegated to research-scanner skill with dynamic_scorer.py -->
-<!-- CONCEPT:SX-1.2 3-Tier Deduplication — DOI exact match → cross-ID mapping → fuzzy title+author (Levenshtein ≥ 0.90) -->
-<!-- CONCEPT:SX-1.3 Storage Dedup — PaperStorage skips already-downloaded PDFs via metadata hash lookup -->
-<!-- CONCEPT:SX-1.4 Auto-Analysis — --analyze flag chains comparative-analysis innovation extraction on relevant papers -->
-<!-- CONCEPT:SX-1.5 Category OR-Join — arXiv query builder uses OR-joined categories so a paper in ANY listed category matches -->
-<!-- CONCEPT:SX-1.6 Background Download Queue — Non-blocking paper downloads via queue.py with job tracking -->
+<!-- CONCEPT:SX-OS.config.sx CLI — Rich terminal interface with progress bars, scan/status commands -->
+<!-- CONCEPT:SX-OS.config.sx-2 Relevance Scoring — Delegated to research-scanner skill with dynamic_scorer.py -->
+<!-- CONCEPT:SX-OS.config.sx-3 3-Tier Deduplication — DOI exact match → cross-ID mapping → fuzzy title+author (Levenshtein ≥ 0.90) -->
+<!-- CONCEPT:SX-OS.config.sx-4 Storage Dedup — PaperStorage skips already-downloaded PDFs via metadata hash lookup -->
+<!-- CONCEPT:SX-OS.scaling.chains-comparative-analysis-extract Auto-Analysis — --analyze flag chains comparative-analysis innovation extraction on relevant papers -->
+<!-- CONCEPT:SX-OS.config.sx-5 Category OR-Join — arXiv query builder uses OR-joined categories so a paper in ANY listed category matches -->
+<!-- CONCEPT:SX-OS.config.sx-6 Background Download Queue — Non-blocking paper downloads via queue.py with job tracking -->
 
 ## Tech Stack & Architecture
 - Language/Version: Python 3.11+
 - Core Libraries: `agent-utilities`, `fastmcp`, `pydantic`, `httpx`, `rich`
 - Key principles: Per-source rate limiting, 3-tier deduplication, full paper storage, existing KG node types.
 - Architecture:
-    - `cli.py`: Rich CLI with progress bars for scan/status commands (CONCEPT:SX-1.0).
+    - `cli.py`: Rich CLI with progress bars for scan/status commands (CONCEPT:SX-OS.config.sx).
     - `mcp_server.py`: MCP server entry point with tools across 3 tag groups (search, discovery, storage).
     - `queue.py`: Background download queue with job tracking and status reporting.
     - `agent_server.py`: Graph agent server for autonomous operation.
@@ -74,7 +74,7 @@ pip install .[all]
 # Quality & Linting (run from project root)
 SKIP=no-commit-to-branch,uv-lock pre-commit run --all-files
 
-# CLI Commands (CONCEPT:SX-1.0)
+# CLI Commands (CONCEPT:SX-OS.config.sx)
 scholarx scan --query "multi-agent systems" --output-dir ./papers
 scholarx scan --categories cs.AI,cs.LG --max-results 50 --output-dir ./papers
 scholarx scan --analyze --output-dir ./papers  # Auto-trigger comparative analysis
@@ -106,12 +106,12 @@ pytest tests/ -v
 scholarx/
 ├── __init__.py              # Lazy imports (servicenow-api pattern)
 ├── __main__.py              # CLI entry point → cli.py
-├── cli.py                    # Rich CLI: scan, status, --analyze (CONCEPT:SX-1.0)
+├── cli.py                    # Rich CLI: scan, status, --analyze (CONCEPT:SX-OS.config.sx)
 ├── models.py                # Paper, PaperSource, SearchQuery, SearchResult
 ├── api_client.py            # ScholarXClient — unified entry point + queue management
-├── queue.py                  # Background download queue with job tracking (CONCEPT:SX-1.6)
-├── deduplication.py          # 3-tier dedup: DOI → cross-ID → fuzzy title+author (CONCEPT:SX-1.2)
-├── paper_storage.py          # Full PDF download + local storage with dedup (CONCEPT:SX-1.3)
+├── queue.py                  # Background download queue with job tracking (CONCEPT:SX-OS.config.sx-6)
+├── deduplication.py          # 3-tier dedup: DOI → cross-ID → fuzzy title+author (CONCEPT:SX-OS.config.sx-3)
+├── paper_storage.py          # Full PDF download + local storage with dedup (CONCEPT:SX-OS.config.sx-4)
 ├── kg_integration.py         # ScholarXKGBridge → KBIngestionEngine
 ├── mcp_server.py             # MCP tools (search, discovery, storage) + 2 analysis prompts
 ├── agent_server.py           # Graph agent server
@@ -119,7 +119,7 @@ scholarx/
 ├── mcp_config.json           # MCP client config
 └── providers/
     ├── base.py               # Abstract PaperProvider + rate limiter
-    ├── arxiv.py              # arXiv Atom API (CONCEPT:SX-1.5 OR-joined categories)
+    ├── arxiv.py              # arXiv Atom API (CONCEPT:SX-OS.config.sx-5 OR-joined categories)
     ├── pmc.py                # NCBI E-utilities
     ├── biorxiv.py            # bioRxiv + medRxiv API
     ├── osf.py                # OSF + PsyArXiv API
@@ -303,7 +303,7 @@ alone).
 Working in parallel with other sessions/worktrees? **Reserve a concept id before you write its `CONCEPT:` marker** so two sessions never collide:
 
 ```bash
-agent-utilities --json concept reserve --ns KG-2   # or a package prefix, e.g. KEY
+agent-utilities --json concept reserve --ns EG-KG.compute.backend   # or a package prefix, e.g. KEY
 ```
 
 Full protocol (ledger, merge=union, reconcile, MCP/REST): <https://knuckles-team.github.io/agent-utilities/concept_coordination/>

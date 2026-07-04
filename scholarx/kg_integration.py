@@ -4,7 +4,7 @@
 Bridges ScholarX papers into the existing KG infrastructure via
 KBIngestionEngine. Uses existing node types (ArticleNode, SourceNode,
 PersonNode) rather than introducing new types. Large papers auto-route
-through RLM (CONCEPT:AU-007) via the KBExtractor pipeline.
+through RLM (CONCEPT:SX-OS.config.au) via the KBExtractor pipeline.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class ScholarXKGBridge:
-    """Bridges ScholarX papers into the Knowledge Graph. (CONCEPT:AU-007)
+    """Bridges ScholarX papers into the Knowledge Graph. (CONCEPT:SX-OS.config.au)
 
     Uses the existing KBIngestionEngine pipeline:
     1. Download PDF → store locally

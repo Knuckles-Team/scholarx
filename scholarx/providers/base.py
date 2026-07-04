@@ -56,7 +56,7 @@ class PaperProvider(ABC):
         Provider keys are optional — every source works unauthenticated; a key
         only raises the rate limit. Resolution is keyed by the source's
         configured ``api_key_env`` name, but the known names are referenced as
-        literals so the env-var drift guard (CONCEPT:OS-5.72) recognizes them as
+        literals so the env-var drift guard (CONCEPT:AU-OS.config.env-var-drift-guard) recognizes them as
         code-read rather than mis-flagging them dead.
         """
         if env_name == "NCBI_API_KEY":

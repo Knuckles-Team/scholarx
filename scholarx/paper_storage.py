@@ -42,7 +42,7 @@ if _OLD_STORAGE_DIR.exists() and _OLD_STORAGE_DIR != DEFAULT_STORAGE_DIR:
 
 
 class PaperStorage:
-    """Manages local storage of downloaded research papers. (CONCEPT:SX-1.3)"""
+    """Manages local storage of downloaded research papers. (CONCEPT:SX-OS.config.sx-4)"""
 
     def __init__(self, storage_dir: str | Path | None = None):
         self.storage_dir = Path(storage_dir) if storage_dir else DEFAULT_STORAGE_DIR
@@ -51,7 +51,7 @@ class PaperStorage:
         self._metadata_dir.mkdir(exist_ok=True)
 
     async def download_paper(self, paper: Paper) -> Path | None:
-        """Download the full PDF for a paper. (CONCEPT:SX-1.3)
+        """Download the full PDF for a paper. (CONCEPT:SX-OS.config.sx-4)
 
         Args:
             paper: Paper with a pdf_url to download.
@@ -93,7 +93,7 @@ class PaperStorage:
             return None
 
     def get_local_path(self, paper_id: str) -> Path | None:
-        """Check if a paper is already stored locally. (CONCEPT:SX-1.3)
+        """Check if a paper is already stored locally. (CONCEPT:SX-OS.config.sx-4)
 
         Args:
             paper_id: Source-specific paper ID.
@@ -113,7 +113,7 @@ class PaperStorage:
         return None
 
     def list_stored_papers(self) -> list[dict]:
-        """List all locally stored papers with their metadata. (CONCEPT:SX-1.3)
+        """List all locally stored papers with their metadata. (CONCEPT:SX-OS.config.sx-4)
 
         Returns:
             List of dicts with paper metadata and local paths.
@@ -132,7 +132,7 @@ class PaperStorage:
         return sorted(results, key=lambda x: x.get("title", ""))
 
     def get_storage_stats(self) -> dict:
-        """Get storage statistics. (CONCEPT:SX-1.3)"""
+        """Get storage statistics. (CONCEPT:SX-OS.config.sx-4)"""
         pdfs = list(self.storage_dir.glob("*.pdf"))
         total_size = sum(f.stat().st_size for f in pdfs)
         return {
