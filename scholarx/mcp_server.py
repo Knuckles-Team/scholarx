@@ -55,6 +55,16 @@ def _get_client():
     return _client
 
 
+def _auto_ingest_papers(papers) -> None:
+    """Best-effort native ingestion of papers as typed KG nodes. No-ops without an engine."""
+    try:
+        from scholarx.kg_ingest import ingest_papers
+
+        ingest_papers(papers)
+    except Exception as e:  # noqa: BLE001 — KG ingestion is never fatal to a search
+        logger.debug(f"KG paper ingestion skipped: {e}")
+
+
 # ── Tool Registration Functions ─────────────────────────────────────────────
 
 
@@ -149,6 +159,7 @@ def register_search_tools(mcp):
         result = await client.search(sq)
         if ctx:
             await ctx.report_progress(100, 100)
+        _auto_ingest_papers(result.papers)
         return {
             "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
             "total_count": result.total_count,
@@ -350,6 +361,44 @@ def register_storage_tools(mcp):
         return {"error": f"Unknown action: {action}"}  # pragma: no cover
 
 
+def register_kg_tools(mcp):
+    """Register native knowledge-graph ingestion tools (Wire-First)."""
+
+    @mcp.tool(tags={"kg"})
+    async def scholarx_ingest_papers(
+        query: str = Field(default="", description="Search query to fetch papers to ingest"),
+        sources: str = Field(
+            default="",
+            description="Comma-separated sources (arxiv,pmc,biorxiv,medrxiv,psyarxiv,osf,semantic_scholar). Empty=all",
+        ),
+        categories: str = Field(default="", description="Comma-separated category filters (e.g., cs.AI,cs.MA)"),
+        max_results: int = Field(default=20, description="Maximum papers to fetch and ingest", ge=1, le=100),
+        ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
+    ) -> dict:
+        """Fetch papers and natively ingest them into epistemic-graph as typed :Paper nodes.
+
+        Searches via the real ScholarX client and pushes the results (with their
+        :PaperSource / :ResearchCategory / :Person nodes and :publishedInSource /
+        :hasCategory / :authoredBy links) into the knowledge graph via the fast engine
+        client. Best-effort: ``ingested`` is ``null`` when no engine is reachable.
+        CONCEPT:AU-KG.ingest.enterprise-source-extractor.
+        """
+        from scholarx.kg_ingest import ingest_papers
+        from scholarx.models import PaperSource, SearchQuery
+
+        client = _get_client()
+        source_list = [PaperSource(s.strip()) for s in sources.split(",") if s.strip()] if sources else []
+        cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else []
+        sq = SearchQuery(query=query, sources=source_list, categories=cat_list, max_results=max_results)
+        if ctx:
+            await ctx.report_progress(10, 100)
+        result = await client.search(sq)
+        ingested = await run_blocking(ingest_papers, result.papers)
+        if ctx:
+            await ctx.report_progress(100, 100)
+        return {"fetched": len(result.papers), "ingested": ingested}
+
+
 def register_prompts(mcp):
     """Register analysis prompts for the genius-agent."""
 
@@ -411,6 +460,7 @@ def get_mcp_instance():
             register_search_tools,
             register_discovery_tools,
             register_storage_tools,
+            register_kg_tools,
         ],
     )
 

@@ -269,6 +269,15 @@ class ScholarXClient:
             Local file path string, or None on failure.
         """
         path = await self.storage.download_paper(paper)
+        if path:
+            # Best-effort native blob ingestion: store the raw PDF as a :MediaAsset in
+            # the knowledge graph. No-ops instantly when no engine is reachable.
+            try:
+                from .kg_media import ingest_pdf
+
+                ingest_pdf(str(path), paper=paper)
+            except Exception as e:  # noqa: BLE001 — KG ingestion is never fatal to a download
+                logger.debug(f"KG PDF ingestion skipped for {paper.id}: {e}")
         return str(path) if path else None
 
     async def download_papers(

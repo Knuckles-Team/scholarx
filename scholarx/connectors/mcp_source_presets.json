@@ -1,0 +1,14 @@
+{
+  "_comment": "Tier-1 mcp_tool source preset(s) for scholarx (AU-KG.ingest.mcp-tool-connector). Syncs research papers into the KG as research_paper documents via the scholarx MCP server's sx_search tool. Contributed presets win over the central MCP_TOOL_PRESETS.",
+  "scholarx-papers": {
+    "server": "scholarx-mcp",
+    "tool": "sx_search",
+    "action": "search",
+    "records_path": "papers",
+    "id_field": "id",
+    "title_field": "title",
+    "text_field": "abstract",
+    "updated_field": "published_date",
+    "doc_type": "research_paper"
+  }
+}

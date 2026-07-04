@@ -1,0 +1,108 @@
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix dc: <http://purl.org/dc/terms/> .
+@prefix : <http://knuckles.team/kg#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# ScholarX research-paper ontology — papers, their source repositories, subject
+# categories, and full-text PDFs, across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF
+# and Semantic Scholar. All classes and properties live in the shared `:` (kg#)
+# namespace; only the owl:Ontology node gets the per-package IRI. Reuses the shared
+# :Person (authors), :Document (abstract/full text), :MediaAsset / :Blob (raw PDF)
+# classes — it never redefines them. Backs the scholarx MCP tool surface
+# (sx_search / sx_info / sx_storage / scholarx_ingest_papers).
+
+# --- classes (owl:Class) ---
+
+:Paper a owl:Class ;
+    rdfs:label "Research Paper" ;
+    rdfs:comment "A research paper / preprint from any supported source, carrying its abstract as searchable text (sx_search)." ;
+    rdfs:subClassOf :Document .
+
+:PaperSource a owl:Class ;
+    rdfs:label "Paper Source" ;
+    rdfs:comment "A research repository ScholarX federates: arxiv, pmc, biorxiv, medrxiv, psyarxiv, osf, semantic_scholar (sx_info sources)." .
+
+:ResearchCategory a owl:Class ;
+    rdfs:label "Research Category" ;
+    rdfs:comment "A subject classification within a source (e.g. cs.AI, cs.MA, q-bio.BM) (sx_info categories)." .
+
+# --- links (owl:ObjectProperty) ---
+
+:publishedInSource a owl:ObjectProperty ;
+    rdfs:label "published in source" ;
+    rdfs:comment "Links a Paper to the PaperSource repository it was retrieved from." ;
+    rdfs:domain :Paper ;
+    rdfs:range :PaperSource .
+
+:hasCategory a owl:ObjectProperty ;
+    rdfs:label "has category" ;
+    rdfs:comment "Links a Paper to a ResearchCategory it is classified under." ;
+    rdfs:domain :Paper ;
+    rdfs:range :ResearchCategory .
+
+:authoredBy a owl:ObjectProperty ;
+    rdfs:label "authored by" ;
+    rdfs:comment "Links a Paper to a Person who wrote it." ;
+    rdfs:domain :Paper ;
+    rdfs:range :Person .
+
+:citesPaper a owl:ObjectProperty ;
+    rdfs:label "cites paper" ;
+    rdfs:comment "Links a Paper to another Paper it references." ;
+    rdfs:domain :Paper ;
+    rdfs:range :Paper .
+
+:hasFullText a owl:ObjectProperty ;
+    rdfs:label "has full text" ;
+    rdfs:comment "Links a Paper to the MediaAsset holding its downloaded full-text PDF blob." ;
+    rdfs:domain :Paper ;
+    rdfs:range :MediaAsset .
+
+# --- fields (owl:DatatypeProperty) ---
+
+:doi a owl:DatatypeProperty ;
+    rdfs:label "doi" ;
+    rdfs:comment "Digital Object Identifier of a Paper." ;
+    rdfs:domain :Paper ;
+    rdfs:range xsd:string .
+
+:abstract a owl:DatatypeProperty ;
+    rdfs:label "abstract" ;
+    rdfs:comment "The Paper's abstract text (semantic-search fodder; also carried as :Document text)." ;
+    rdfs:domain :Paper ;
+    rdfs:range xsd:string .
+
+:publishedDate a owl:DatatypeProperty ;
+    rdfs:label "published date" ;
+    rdfs:comment "Publication date of a Paper (ISO-8601)." ;
+    rdfs:domain :Paper ;
+    rdfs:range xsd:string .
+
+:citationCount a owl:DatatypeProperty ;
+    rdfs:label "citation count" ;
+    rdfs:comment "Number of citations a Paper has received (when the source reports it)." ;
+    rdfs:domain :Paper ;
+    rdfs:range xsd:integer .
+
+:pdfUrl a owl:DatatypeProperty ;
+    rdfs:label "pdf url" ;
+    rdfs:comment "Direct URL to a Paper's full-text PDF." ;
+    rdfs:domain :Paper ;
+    rdfs:range xsd:string .
+
+:externalToolId a owl:DatatypeProperty ;
+    rdfs:label "external tool id" ;
+    rdfs:comment "The source-native identifier of the object (e.g. an arXiv id, PMC id, DOI)." ;
+    rdfs:range xsd:string .
+
+<http://knuckles.team/kg/scholarx> a owl:Ontology ;
+    rdfs:label "ScholarX Research-Paper Ontology" ;
+    rdfs:comment """ScholarX research-paper model — papers and their preprint/journal
+    source repositories, subject categories, authors (shared :Person), abstracts and
+    full-text PDFs (shared :Document / :MediaAsset) — federated into the agent-utilities
+    knowledge-graph hub across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF and
+    Semantic Scholar.""" ;
+    owl:imports <http://knuckles.team/kg> .
