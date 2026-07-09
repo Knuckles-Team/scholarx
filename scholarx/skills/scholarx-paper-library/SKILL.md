@@ -1,5 +1,6 @@
 ---
 name: scholarx-paper-library
+skill_type: skill
 description: >-
   Full-text PDF download and offline library management via the scholarx MCP
   server — fetch a paper's PDF, bulk-queue downloads, download straight from an

@@ -1,5 +1,6 @@
 ---
 name: scholarx-kg-ingestion
+skill_type: skill
 description: >-
   Native epistemic-graph ingestion of research papers via the scholarx MCP
   server — fetch papers and push them into the knowledge graph as typed :Paper

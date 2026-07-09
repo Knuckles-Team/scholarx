@@ -1,5 +1,6 @@
 ---
 name: scholarx-paper-search
+skill_type: skill
 description: >-
   Federated research-paper search via the scholarx MCP server — one query
   fanned out across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF and Semantic
