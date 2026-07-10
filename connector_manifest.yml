@@ -1,0 +1,133 @@
+connector: scholarx
+ontology_source: scholarx
+schema_version: '1'
+resources:
+- name: Paper
+  label: Research Paper
+  id_prefix: paper
+  relations:
+  - name: authoredBy
+    label: authored by
+    target: Person
+    lpg_rel_type: ''
+  - name: citesPaper
+    label: cites paper
+    target: Paper
+    lpg_rel_type: ''
+  - name: hasCategory
+    label: has category
+    target: ResearchCategory
+    lpg_rel_type: ''
+  - name: hasFullText
+    label: has full text
+    target: MediaAsset
+    lpg_rel_type: ''
+  - name: publishedInSource
+    label: published in source
+    target: PaperSource
+    lpg_rel_type: ''
+- name: PaperSource
+  label: Paper Source
+  id_prefix: papersource
+  relations: []
+- name: ResearchCategory
+  label: Research Category
+  id_prefix: researchcategory
+  relations: []
+actions:
+- id: run_graph_flow
+  name: Graph Flow Execution
+  description: Execute a workflow through the agent's graph orchestration engine
+events:
+- name: scholarx-papers.updated
+  resource: research_paper
+  description: "Watermark event for 'scholarx-papers' \u2014 advances on published_date (mcp_source_presets.json)."
+identity:
+  id_field:
+    research_paper: id
+  title_field:
+    research_paper: title
+  text_field:
+    research_paper: abstract
+  updated_field:
+    research_paper: published_date
+permissions:
+  acl_fields: []
+  tenant_field: null
+  read_roles: []
+schema_mappings:
+  Paper:
+    ontology_class: Document
+    fields:
+      abstract: xsd:string
+      citationCount: xsd:integer
+      doi: xsd:string
+      externalToolId: xsd:string
+      pdfUrl: xsd:string
+      publishedDate: xsd:string
+  PaperSource:
+    ontology_class: null
+    fields:
+      abstract: xsd:string
+      citationCount: xsd:integer
+      doi: xsd:string
+      externalToolId: xsd:string
+      pdfUrl: xsd:string
+      publishedDate: xsd:string
+  ResearchCategory:
+    ontology_class: null
+    fields:
+      abstract: xsd:string
+      citationCount: xsd:integer
+      doi: xsd:string
+      externalToolId: xsd:string
+      pdfUrl: xsd:string
+      publishedDate: xsd:string
+sync:
+- preset: scholarx-papers
+  server: scholarx-mcp
+  tool: sx_search
+  action: search
+  records_path: papers
+  id_field: id
+  title_field: title
+  text_field: abstract
+  updated_field: published_date
+  pagination: null
+  doc_type: research_paper
+  raw:
+    server: scholarx-mcp
+    tool: sx_search
+    action: search
+    records_path: papers
+    id_field: id
+    title_field: title
+    text_field: abstract
+    updated_field: published_date
+    doc_type: research_paper
+provenance:
+  generated_by: scripts/generate_connector_manifests.py
+  generated_at: '2026-07-09T00:00:00Z'
+  source_artifacts:
+  - a2a.json
+  - scholarx/connectors/mcp_source_presets.json
+  - scholarx/ontology/scholarx.ttl
+  integrity:
+    algorithm: urdna2015-sha256
+    hash: 9181a20a5c7a3450a2705316779216af83eac1ac5e5f9a31e31b31ed74774e57
+    triple_count: 52
+  signer: ontology-manifest-generator
+  signature: 3e219c1639312b742070bcaef6cfa773f8dfc8d38167b71746742053731f6688
+policy:
+  pii_fields: {}
+  tenant_boundary: null
+  rls: []
+review_todos:
+- "policy.rls / policy.tenant_boundary are unset \u2014 no row-level-security predicate has been reviewed\
+  \ for this connector."
+- "schema_mappings.Paper.ontology_class = 'Document' [source ttl rdfs:subClassOf] \u2014 verify manually\
+  \ before relying on this crosswalk for reasoning/joins."
+- "schema_mappings.PaperSource.ontology_class = None [UNRESOLVED \u2014 no crosswalk found by any heuristic]\
+  \ \u2014 verify manually before relying on this crosswalk for reasoning/joins."
+- "schema_mappings.ResearchCategory.ontology_class = None [UNRESOLVED \u2014 no crosswalk found by any\
+  \ heuristic] \u2014 verify manually before relying on this crosswalk for reasoning/joins."
