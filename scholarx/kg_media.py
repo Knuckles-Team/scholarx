@@ -1,7 +1,7 @@
 """Native epistemic-graph blob ingestion for ScholarX full-text PDFs.
 
 CONCEPT:AU-KG.ingest.list-durable-media. When a live epistemic-graph engine is reachable, a
-downloaded paper PDF is stored as a content-addressed **blob** with a ``:MediaAsset`` graph
+downloaded paper PDF is stored as a content-addressed **blob** with a ``:AssetOccurrence`` graph
 node (carrying the paper's metadata) in ONE cross-modal ACID commit, via the agent-utilities
 ``MediaStore`` — the same blob path media-downloader uses. This makes the raw PDF bytes — not
 just a filesystem path — durable, deduped, and queryable inside the knowledge graph, and lets
@@ -20,7 +20,7 @@ from typing import Any
 
 logger = logging.getLogger("scholarx.kg")
 
-# Paper metadata worth carrying onto the :MediaAsset node.
+# Paper metadata worth carrying onto the :AssetOccurrence node.
 _META_FIELDS = ("id", "title", "doi", "url", "source", "published_date")
 
 
@@ -37,7 +37,7 @@ def media_store() -> Any | None:
         if store is not None:
             return store
     except Exception as e:  # noqa: BLE001 — primitive not shipped; fall through
-        logger.debug("scholarx KG media: shared primitive unavailable (%s)", e)
+        logger.debug("Operation failed: error_type=%s", type(e).__name__)
     try:
         from agent_utilities.knowledge_graph.core.graph_compute import GraphComputeEngine
         from agent_utilities.knowledge_graph.memory.media_store import MediaStore
@@ -47,7 +47,7 @@ def media_store() -> Any | None:
             return None
         return MediaStore(engine)
     except Exception as e:  # noqa: BLE001 — no reachable engine
-        logger.debug("scholarx KG media: engine unreachable: %s", e)
+        logger.debug("Operation failed: error_type=%s", type(e).__name__)
         return None
 
 
@@ -58,7 +58,7 @@ def ingest_pdf(
     source: str = "scholarx",
     store: Any | None = None,
 ) -> dict[str, Any] | None:
-    """Store a downloaded paper PDF as a blob + ``:MediaAsset`` in the knowledge graph.
+    """Store a downloaded paper PDF as a blob + ``:AssetOccurrence`` in the knowledge graph.
 
     ``paper`` may be a ScholarX ``Paper`` model or a plain dict of its metadata. Returns
     ``{asset_id, digest, size_bytes, media_type}`` on success, or ``None`` when there is no
@@ -78,7 +78,7 @@ def ingest_pdf(
         with open(file_path, "rb") as fh:
             data = fh.read()
     except OSError as e:
-        logger.warning("scholarx KG media: cannot read %s: %s", file_path, e)
+        logger.warning("Operation failed: error_type=%s", type(e).__name__)
         return None
 
     extra: dict[str, Any] = {}
@@ -99,7 +99,9 @@ def ingest_pdf(
             extra=extra,
         )
     except Exception as e:  # noqa: BLE001 — engine/store failure is non-fatal
-        logger.warning("scholarx KG media: store_media failed: %s", e)
+        logger.warning(
+            "scholarx KG media store failed: error_type=%s", type(e).__name__
+        )
         return None
     if stored is None:
         return None

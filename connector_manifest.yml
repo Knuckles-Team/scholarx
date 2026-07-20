@@ -20,7 +20,7 @@ resources:
     lpg_rel_type: ''
   - name: hasFullText
     label: has full text
-    target: MediaAsset
+    target: AssetOccurrence
     lpg_rel_type: ''
   - name: publishedInSource
     label: published in source
@@ -95,6 +95,7 @@ sync:
   updated_field: published_date
   pagination: null
   doc_type: research_paper
+  tool_schema_sha256: 60226a567d4e8c45a92faa315e608383e16ba4dc5de9a6db610783ba885c30ca
   raw:
     server: scholarx-mcp
     tool: sx_search
@@ -107,17 +108,20 @@ sync:
     doc_type: research_paper
 provenance:
   generated_by: scripts/generate_connector_manifests.py
-  generated_at: '2026-07-09T00:00:00Z'
+  generated_at: '2026-07-18T00:00:00Z'
   source_artifacts:
   - a2a.json
   - scholarx/connectors/mcp_source_presets.json
+  - scholarx/connectors/tool_schema_fingerprints.json
   - scholarx/ontology/scholarx.ttl
   integrity:
     algorithm: urdna2015-sha256
-    hash: 9181a20a5c7a3450a2705316779216af83eac1ac5e5f9a31e31b31ed74774e57
+    hash: e2c513874724b2d7399e6a4caab6285a46cc7424eaf9b7375a89c287ca79cbdf
     triple_count: 52
   signer: ontology-manifest-generator
-  signature: 3e219c1639312b742070bcaef6cfa773f8dfc8d38167b71746742053731f6688
+  signature_algorithm: ed25519
+  signing_public_key: q0Cp7bmQMqJhbofGKKw8xXC6KbFzukBDDke0UYVi8y4
+  signature: mPd7dqeP0dWXe0NEJicr0Kfj_0DbJMRidV7WaRoHN0lTuJLPmXPBzRegBBjc6uKeRGUolvZlONPKGdS4XHrhBQ
 policy:
   pii_fields: {}
   tenant_boundary: null

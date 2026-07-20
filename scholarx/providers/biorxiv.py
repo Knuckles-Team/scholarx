@@ -57,7 +57,7 @@ class BiorxivProvider(PaperProvider):
 
             return valid_papers[: query.max_results]
         except Exception as e:
-            logger.error(f"bioRxiv search failed: {e}")
+            logger.error("bioRxiv search failed: error_type=%s", type(e).__name__)
             return []
 
     async def get_paper(self, paper_id: str) -> Paper | None:
@@ -72,7 +72,9 @@ class BiorxivProvider(PaperProvider):
                 return self._parse_paper(collection[-1])  # Latest version
             return None
         except Exception as e:
-            logger.error(f"bioRxiv get_paper failed for {paper_id}: {e}")
+            logger.error(
+                "bioRxiv paper retrieval failed: error_type=%s", type(e).__name__
+            )
             return None
 
     async def get_recent(self, categories: list[str] | None = None, days: int = 1) -> list[Paper]:
@@ -95,7 +97,7 @@ class BiorxivProvider(PaperProvider):
 
             return valid_papers
         except Exception as e:
-            logger.error(f"bioRxiv get_recent failed: {e}")
+            logger.error("Operation failed: error_type=%s", type(e).__name__)
             return []
 
     # ── Private Helpers ──────────────────────────────────────────────────

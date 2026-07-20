@@ -1,10 +1,28 @@
 import json
-import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
+
 from scholarx.models import Paper, PaperSource
-from scholarx.paper_storage import PaperStorage
+from scholarx.paper_storage import PaperStorage, normalize_arxiv_id
+
+
+async def _bytes(chunks):
+    for chunk in chunks:
+        yield chunk
+
+
+def _mock_streaming_client(response):
+    stream_context = MagicMock()
+    stream_context.__aenter__ = AsyncMock(return_value=response)
+    stream_context.__aexit__ = AsyncMock(return_value=None)
+
+    client = MagicMock()
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=None)
+    client.stream.return_value = stream_context
+    return client
 
 
 @pytest.mark.concept("SX-1.3")
@@ -41,7 +59,7 @@ async def test_download_paper_already_exists(temp_storage, sample_arxiv_paper):
     temp_storage._save_metadata(sample_arxiv_paper, pdf_file)
 
     # Download should return the existing path without initiating a download
-    with patch("httpx.AsyncClient") as mock_client_cls:
+    with patch("scholarx.paper_storage.create_async_http_client") as mock_client_cls:
         res = await temp_storage.download_paper(sample_arxiv_paper)
         assert res == pdf_file
         assert res.read_bytes() == b"existing content"
@@ -53,20 +71,29 @@ async def test_download_paper_already_exists(temp_storage, sample_arxiv_paper):
 async def test_download_paper_success(temp_storage, sample_arxiv_paper):
     # Mock httpx response
     mock_response = MagicMock()
-    mock_response.content = b"PDF bytes"
+    mock_response.status_code = 200
+    mock_response.headers = {"content-length": "14"}
+    mock_response.aiter_bytes = lambda: _bytes([b"%PDF-1.7\nbytes"])
     mock_response.raise_for_status = MagicMock()
 
-    mock_client = AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.get = AsyncMock(return_value=mock_response)
+    mock_client = _mock_streaming_client(mock_response)
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
+    with (
+        patch(
+            "scholarx.paper_storage.create_async_http_client",
+            return_value=mock_client,
+        ),
+        patch(
+            "scholarx.paper_storage._validate_download_url",
+            new=AsyncMock(),
+        ),
+    ):
         res = await temp_storage.download_paper(sample_arxiv_paper)
 
         # Verify the file was saved
         assert res is not None
         assert res.exists()
-        assert res.read_bytes() == b"PDF bytes"
+        assert res.read_bytes() == b"%PDF-1.7\nbytes"
 
         # Verify metadata is correct and fully validated
         local_meta_path = temp_storage._metadata_dir / f"{temp_storage._id_hash(sample_arxiv_paper.id)}.json"
@@ -84,16 +111,50 @@ async def test_download_paper_success(temp_storage, sample_arxiv_paper):
 @pytest.mark.concept("SX-1.3")
 @pytest.mark.asyncio
 async def test_download_paper_http_error(temp_storage, sample_arxiv_paper):
-    mock_client = AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-    # Simulate HTTP error
-    mock_client.get = AsyncMock(
-        side_effect=httpx.HTTPStatusError("404 Not Found", request=MagicMock(), response=MagicMock())
+    mock_response = MagicMock(status_code=404, headers={})
+    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "404 Not Found", request=MagicMock(), response=MagicMock()
     )
+    mock_client = _mock_streaming_client(mock_response)
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
+    with (
+        patch(
+            "scholarx.paper_storage.create_async_http_client",
+            return_value=mock_client,
+        ),
+        patch(
+            "scholarx.paper_storage._validate_download_url",
+            new=AsyncMock(),
+        ),
+    ):
         res = await temp_storage.download_paper(sample_arxiv_paper)
         assert res is None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2603.09022v2", "2603.09022v2"),
+        ("arXiv:2603.09022", "2603.09022"),
+        ("https://arxiv.org/abs/hep-th/9901001", "hep-th/9901001"),
+    ],
+)
+def test_normalize_arxiv_id_accepts_canonical_forms(value, expected):
+    assert normalize_arxiv_id(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "../../outside",
+        "https://example.com/abs/2603.09022",
+        "http://arxiv.org/abs/2603.09022",
+        "https://arxiv.org/abs/2603.09022?download=1",
+    ],
+)
+def test_normalize_arxiv_id_rejects_path_and_url_injection(value):
+    with pytest.raises(ValueError):
+        normalize_arxiv_id(value)
 
 
 @pytest.mark.concept("SX-1.3")
@@ -105,6 +166,32 @@ def test_get_local_path_invalid_json(temp_storage):
     meta_file.write_text("invalid json content{")
 
     assert temp_storage.get_local_path(paper_id) is None
+
+
+def test_get_local_path_rejects_metadata_outside_storage(temp_storage, tmp_path):
+    outside = tmp_path.parent / "outside.pdf"
+    outside.write_bytes(b"%PDF-1.7")
+    paper_id = "arxiv:outside"
+    meta_file = temp_storage._metadata_dir / f"{temp_storage._id_hash(paper_id)}.json"
+    meta_file.write_text(json.dumps({"local_path": str(outside)}))
+
+    assert temp_storage.get_local_path(paper_id) is None
+
+
+@pytest.mark.asyncio
+async def test_download_rejects_symbolic_link_destination(temp_storage):
+    victim = temp_storage.storage_dir / "victim.pdf"
+    victim.write_bytes(b"do not replace")
+    destination = temp_storage.storage_dir / "download.pdf"
+    try:
+        destination.symlink_to(victim)
+    except OSError:
+        pytest.skip("symbolic links are unavailable")
+
+    with pytest.raises(ValueError, match="symbolic link"):
+        await temp_storage._download_pdf("https://arxiv.org/example.pdf", destination)
+
+    assert victim.read_bytes() == b"do not replace"
 
 
 @pytest.mark.concept("SX-1.3")

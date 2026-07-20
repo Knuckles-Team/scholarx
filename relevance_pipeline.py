@@ -12,6 +12,7 @@ reasoning, tool use, memory, evaluation, etc.
 
 import asyncio
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -21,7 +22,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 from scholarx.api_client import ScholarXClient
 from scholarx.models import PaperSource, SearchQuery
 
-OUTPUT_DIR = Path("/home/apps/workspace/scholarx_papers/batch_30")
+OUTPUT_DIR = Path(
+    os.environ.get(
+        "SCHOLARX_OUTPUT_DIR", str(Path.cwd() / "scholarx_papers" / "batch_30")
+    )
+).expanduser()
 
 # ── Relevance Concept Taxonomy ──────────────────────────────────────────────
 # Weighted keywords grouped by agent-utilities domains.
@@ -371,7 +376,7 @@ async def main():
     print(f"\n📥 Downloading PDFs for {len(accepted)} accepted papers...", file=sys.stderr)
     print(f"   Rate limit: {DOWNLOAD_DELAY}s between downloads (arXiv policy)", file=sys.stderr)
     downloaded = 0
-    failed = []
+    failed = 0
     for i, sp in enumerate(accepted, 1):
         for attempt in range(MAX_RETRIES):
             try:
@@ -387,24 +392,29 @@ async def main():
 
                     break
                 else:
-                    print(f"  ⚠️  [{i}/{len(accepted)}] No PDF URL: {sp['paper'].title[:60]}...", file=sys.stderr)
+                    print(
+                        f"  ⚠️  [{i}/{len(accepted)}] No PDF URL",
+                        file=sys.stderr,
+                    )
                     # No URL is not a retriable error
                     break
             except Exception as e:
                 if attempt < MAX_RETRIES - 1:
                     print(
                         f"  🔄 [{i}/{len(accepted)}] Retry {attempt + 1}/{MAX_RETRIES} "
-                        f"(waiting {RETRY_BACKOFF[attempt]}s): {e}",
+                        f"(waiting {RETRY_BACKOFF[attempt]}s): {type(e).__name__}",
                         file=sys.stderr,
                     )
                 else:
-                    print(f"  ❌ [{i}/{len(accepted)}] Failed after {MAX_RETRIES} attempts: {e}", file=sys.stderr)
-                    failed.append(sp["paper"].title)
+                    print(
+                        f"  ❌ [{i}/{len(accepted)}] Failed after "
+                        f"{MAX_RETRIES} attempts: {type(e).__name__}",
+                        file=sys.stderr,
+                    )
+                    failed += 1
 
     if failed:
-        print(f"\n  ⚠️  {len(failed)} downloads failed after retries:", file=sys.stderr)
-        for t in failed:
-            print(f"     - {t[:70]}", file=sys.stderr)
+        print(f"\n  ⚠️  {failed} downloads failed after retries", file=sys.stderr)
 
     print(f"\n{'=' * 70}", file=sys.stderr)
     print("✅ Pipeline complete!", file=sys.stderr)
@@ -412,7 +422,7 @@ async def main():
     print(f"   Papers accepted: {len(accepted)} (relevant + marginal)", file=sys.stderr)
     print(f"   Papers filtered: {len(irrelevant)} (zero value)", file=sys.stderr)
     print(f"   PDFs downloaded: {downloaded}", file=sys.stderr)
-    print(f"   Output dir:      {OUTPUT_DIR}", file=sys.stderr)
+    print("   Output directory configured", file=sys.stderr)
     print(f"{'=' * 70}", file=sys.stderr)
 
 

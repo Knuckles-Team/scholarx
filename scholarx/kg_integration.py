@@ -71,7 +71,7 @@ class ScholarXKGBridge:
         local_path = await self.storage.download_paper(paper)
         if not local_path:
             # Fallback: ingest from abstract only
-            logger.warning(f"No PDF for {paper.id}, ingesting abstract only")
+            logger.warning("No PDF was available; ingesting abstract only")
             return await self._ingest_abstract_only(paper, kb_name)
 
         # 2. Ingest via KBIngestionEngine (handles PDF parsing, chunking, RLM)
@@ -84,9 +84,9 @@ class ScholarXKGBridge:
                 result["kb_id"] = meta.id
                 result["article_count"] = meta.article_count
             except Exception as e:
-                logger.error(f"KG ingestion failed for {paper.id}: {e}")
+                logger.error("Operation failed: error_type=%s", type(e).__name__)
                 result["status"] = "error"
-                result["error"] = str(e)
+                result["error"] = "Knowledge-graph operation failed"
         else:
             result["status"] = "skipped"
             result["reason"] = "KBIngestionEngine not available"
@@ -213,8 +213,8 @@ class ScholarXKGBridge:
                 "nodes_created": [article_id, source_id],
             }
         except Exception as e:
-            logger.error(f"Abstract-only ingestion failed for {paper.id}: {e}")
-            return {"paper_id": paper.id, "status": "error", "error": str(e)}
+            logger.error("Operation failed: error_type=%s", type(e).__name__)
+            return {"paper_id": paper.id, "status": "error", "error": "Operation failed"}
 
     async def _create_auxiliary_nodes(self, paper: Paper) -> None:
         """Create PersonNode for authors and link to ArticleNode."""
@@ -248,4 +248,4 @@ class ScholarXKGBridge:
                 if not self.engine.graph.has_edge(article_id, author_id):
                     self.engine.graph.add_edge(article_id, author_id, type=RegistryEdgeType.AUTHORED)
         except Exception as e:
-            logger.debug(f"Failed to create author nodes for {paper.id}: {e}")
+            logger.debug("Operation failed: error_type=%s", type(e).__name__)

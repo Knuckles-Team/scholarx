@@ -1,6 +1,6 @@
-agent-utilities>=1.0.0
+agent-utilities>=1.27.1,<2.0.0
 httpx>=0.27
 python-dotenv
 Levenshtein>=0.26
-pypdf>=5.0
+pypdf>=6.13.3
 rich>=13.0

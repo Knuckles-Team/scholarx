@@ -1,0 +1,21 @@
+{
+  "connector": "scholarx",
+  "fixtures": [
+    {
+      "expected": {
+        "acl_state": "quarantine",
+        "id": "fixture-record",
+        "title": "Synthetic certification record"
+      },
+      "preset": "scholarx-papers",
+      "record": {
+        "abstract": "Synthetic content used only for contract validation.",
+        "acl_public": false,
+        "id": "fixture-record",
+        "published_date": "2000-01-01T00:00:00Z",
+        "title": "Synthetic certification record"
+      }
+    }
+  ],
+  "schema_version": "1"
+}

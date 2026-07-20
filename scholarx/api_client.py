@@ -22,7 +22,7 @@ from .models import (
     SourceConfig,
     SourceStatus,
 )
-from .paper_storage import PaperStorage
+from .paper_storage import PaperStorage, normalize_arxiv_id
 from .providers.base import PaperProvider
 
 logger = logging.getLogger(__name__)
@@ -31,37 +31,34 @@ logger = logging.getLogger(__name__)
 # overlap I/O without overwhelming the arXiv mirrors; politeness for the
 # background queue is enforced separately in queue.py.
 ARXIV_DOWNLOAD_CONCURRENCY = 5
+_MAX_DOWNLOAD_CONCURRENCY = 16
+_MAX_PAPER_DOWNLOAD_BATCH = 100
+_MAX_DIRECT_DOWNLOAD_BATCH = 20
+_MAX_DOWNLOAD_BATCH_SECONDS = 300.0
 
-_ARXIV_URL_PREFIXES = (
-    "https://arxiv.org/abs/",
-    "https://arxiv.org/pdf/",
-    "http://arxiv.org/abs/",
-    "http://arxiv.org/pdf/",
-)
+def _download_concurrency(value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("Download concurrency must be an integer")
+    if value < 0 or value > _MAX_DOWNLOAD_CONCURRENCY:
+        raise ValueError("Download concurrency exceeds its limit")
+    return value or ARXIV_DOWNLOAD_CONCURRENCY
 
 
-def _normalize_arxiv_id(raw_id: str) -> tuple[str, str, str]:
-    """Normalize an arXiv id or URL into (pid, base_id, pdf_url).
-
-    Args:
-        raw_id: An arXiv id (``2603.09022``), a versioned id
-            (``2603.09022v2``) or a full abs/pdf URL.
-
-    Returns:
-        Tuple of (pid with any version suffix, base_id without version
-        suffix for the filename, the canonical pdf URL).
-    """
-    pid = raw_id.strip()
-    for prefix in _ARXIV_URL_PREFIXES:
-        if pid.startswith(prefix):
-            pid = pid.split(prefix)[-1].rstrip("/")
-            break
-    if pid.endswith(".pdf"):
-        pid = pid[: -len(".pdf")]
-    # Strip version suffix for filename, keep it for the URL.
-    base_id = pid.split("v")[0] if "v" in pid and pid[-1].isdigit() else pid
-    pdf_url = f"https://arxiv.org/pdf/{pid}"
-    return pid, base_id, pdf_url
+async def _wait_for_download_tasks(tasks: list[asyncio.Task]) -> None:
+    """Apply one wall budget and never orphan work when the caller is cancelled."""
+    try:
+        _, pending = await asyncio.wait(
+            tasks, timeout=_MAX_DOWNLOAD_BATCH_SECONDS
+        )
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+    for task in pending:
+        task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
 
 
 def _create_provider(source: PaperSource, config: SourceConfig) -> PaperProvider:
@@ -126,7 +123,7 @@ class ScholarXClient:
                 try:
                     self._providers[source] = _create_provider(source, config)
                 except Exception as e:
-                    logger.warning(f"Failed to initialize provider {source}: {e}")
+                    logger.warning("Operation failed: error_type=%s", type(e).__name__)
 
         self.storage = PaperStorage(storage_dir)
         logger.info(
@@ -160,8 +157,10 @@ class ScholarXClient:
             try:
                 return await self._providers[source].search(query)
             except Exception as e:
-                logger.error(f"Search failed for {source.value}: {e}")
-                sources_failed.append(f"{source.value}: {e}")
+                logger.error(
+                    "Provider search failed: error_type=%s", type(e).__name__
+                )
+                sources_failed.append(f"{source.value}: {type(e).__name__}")
                 return []
 
         results = await asyncio.gather(
@@ -232,8 +231,8 @@ class ScholarXClient:
             try:
                 return await self._providers[source].get_recent(categories, days)
             except Exception as e:
-                logger.error(f"get_recent failed for {source.value}: {e}")
-                sources_failed.append(f"{source.value}: {e}")
+                logger.error("Operation failed: error_type=%s", type(e).__name__)
+                sources_failed.append(f"{source.value}: {type(e).__name__}")
                 return []
 
         results = await asyncio.gather(
@@ -270,14 +269,14 @@ class ScholarXClient:
         """
         path = await self.storage.download_paper(paper)
         if path:
-            # Best-effort native blob ingestion: store the raw PDF as a :MediaAsset in
+            # Best-effort native blob ingestion: store the raw PDF as a :AssetOccurrence in
             # the knowledge graph. No-ops instantly when no engine is reachable.
             try:
                 from .kg_media import ingest_pdf
 
                 ingest_pdf(str(path), paper=paper)
             except Exception as e:  # noqa: BLE001 — KG ingestion is never fatal to a download
-                logger.debug(f"KG PDF ingestion skipped for {paper.id}: {e}")
+                logger.debug("Operation failed: error_type=%s", type(e).__name__)
         return str(path) if path else None
 
     async def download_papers(
@@ -302,7 +301,11 @@ class ScholarXClient:
             ``paper_id``, ``status`` ('downloaded' | 'cached' | 'failed') and
             either ``local_path`` or ``error``.
         """
-        limit = concurrency if concurrency > 0 else ARXIV_DOWNLOAD_CONCURRENCY
+        if len(papers) > _MAX_PAPER_DOWNLOAD_BATCH:
+            raise ValueError("Paper download batch exceeds its limit")
+        if not papers:
+            return []
+        limit = _download_concurrency(concurrency)
         semaphore = asyncio.Semaphore(limit)
 
         async def _one(paper: Paper) -> dict:
@@ -329,21 +332,28 @@ class ScholarXClient:
                     "error": "Download failed or returned None",
                 }
 
-        raw = await asyncio.gather(
-            *[_one(p) for p in papers],
-            return_exceptions=True,
-        )
+        tasks = [asyncio.create_task(_one(p)) for p in papers]
+        await _wait_for_download_tasks(tasks)
 
         results: list[dict] = []
-        for paper, item in zip(papers, raw, strict=True):
-            if isinstance(item, dict):
-                results.append(item)
-            else:
+        for paper, task in zip(papers, tasks, strict=True):
+            if task.cancelled():
                 results.append(
                     {
                         "paper_id": paper.id,
                         "status": "failed",
-                        "error": str(item),
+                        "error": "Download batch time limit exceeded",
+                    }
+                )
+                continue
+            try:
+                results.append(task.result())
+            except Exception:
+                results.append(
+                    {
+                        "paper_id": paper.id,
+                        "status": "failed",
+                        "error": "Download failed",
                     }
                 )
         return results
@@ -356,9 +366,8 @@ class ScholarXClient:
     ) -> list[dict]:
         """Download arXiv PDFs directly by id/URL with bounded concurrency.
 
-        Bypasses the arXiv metadata API entirely. A single shared
-        ``httpx.AsyncClient`` is used across the whole batch. Already-stored
-        PDFs are skipped via ``dest.exists()``.
+        Bypasses the arXiv metadata API while retaining the same validated,
+        streamed, atomic storage path as metadata-backed paper downloads.
 
         Args:
             raw_ids: arXiv ids (``2603.09022``), versioned ids or full
@@ -371,45 +380,68 @@ class ScholarXClient:
             ``paper_id``, ``status`` ('downloaded' | 'cached' | 'failed') and
             either ``local_path`` (+ ``size_bytes``) or ``error``.
         """
-        import httpx
-
         ids = [r.strip() for r in raw_ids if r and r.strip()]
-        limit = concurrency if concurrency > 0 else ARXIV_DOWNLOAD_CONCURRENCY
+        if len(ids) > _MAX_DIRECT_DOWNLOAD_BATCH:
+            raise ValueError("Direct download batch exceeds its limit")
+        if not ids:
+            return []
+        limit = _download_concurrency(concurrency)
         semaphore = asyncio.Semaphore(limit)
 
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(120.0, connect=30.0),
-            follow_redirects=True,
-        ) as http:
+        normalized: list[str | None] = []
+        for raw_id in ids:
+            try:
+                normalized.append(normalize_arxiv_id(raw_id))
+            except ValueError:
+                normalized.append(None)
 
-            async def _one(raw_id: str) -> dict:
-                pid, base_id, pdf_url = _normalize_arxiv_id(raw_id)
-                dest = self.storage.storage_dir / f"{base_id}.pdf"
-                if dest.exists():
-                    return {"paper_id": pid, "status": "cached", "local_path": str(dest)}
-                async with semaphore:
-                    resp = await http.get(pdf_url)
-                    resp.raise_for_status()
-                    dest.write_bytes(resp.content)
-                    return {
-                        "paper_id": pid,
-                        "status": "downloaded",
-                        "local_path": str(dest),
-                        "size_bytes": len(resp.content),
-                    }
+        async def _one(pid: str) -> dict:
+            async with semaphore:
+                path, size_bytes, created = await self.storage.download_arxiv_id(pid)
+            return {
+                "paper_id": pid,
+                "status": "downloaded" if created else "cached",
+                "local_path": str(path),
+                "size_bytes": size_bytes,
+            }
 
-            raw = await asyncio.gather(
-                *[_one(r) for r in ids],
-                return_exceptions=True,
-            )
+        tasks = [
+            asyncio.create_task(_one(pid)) if pid is not None else None
+            for pid in normalized
+        ]
+        valid_tasks = [task for task in tasks if task is not None]
+        if valid_tasks:
+            await _wait_for_download_tasks(valid_tasks)
 
         results: list[dict] = []
-        for raw_id, item in zip(ids, raw, strict=True):
-            if isinstance(item, dict):
-                results.append(item)
+        for pid, task in zip(normalized, tasks, strict=True):
+            if pid is None or task is None:
+                results.append(
+                    {
+                        "paper_id": "invalid",
+                        "status": "rejected",
+                        "error": "Invalid arXiv identifier",
+                    }
+                )
+            elif task.cancelled():
+                results.append(
+                    {
+                        "paper_id": pid,
+                        "status": "failed",
+                        "error": "Download batch time limit exceeded",
+                    }
+                )
             else:
-                pid, _, _ = _normalize_arxiv_id(raw_id)
-                results.append({"paper_id": pid, "status": "failed", "error": str(item)})
+                try:
+                    results.append(task.result())
+                except Exception:
+                    results.append(
+                        {
+                            "paper_id": pid,
+                            "status": "failed",
+                            "error": "Download failed",
+                        }
+                    )
         return results
 
     def queue_download(self, paper: Paper) -> str:
@@ -469,6 +501,9 @@ class ScholarXClient:
                 cats = await self._providers[s].get_categories()
                 result[s.value] = cats
             except Exception as e:
-                logger.warning(f"Failed to get categories for {s.value}: {e}")
+                logger.warning(
+                    "Failed to get provider categories: error_type=%s",
+                    type(e).__name__,
+                )
                 result[s.value] = []
         return result

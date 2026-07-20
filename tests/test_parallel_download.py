@@ -145,7 +145,7 @@ async def test_download_papers_aggregates_errors(tmp_path):
 
     assert by_id["ok"]["status"] == "downloaded"
     assert by_id["boom"]["status"] == "failed"
-    assert "network exploded" in by_id["boom"]["error"]
+    assert by_id["boom"]["error"] == "Download failed"
     assert by_id["none"]["status"] == "failed"
 
 
@@ -153,48 +153,31 @@ async def test_download_papers_aggregates_errors(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_download_urls_caps_in_flight(tmp_path, monkeypatch):
-    """download_urls shares one client and caps concurrency."""
+async def test_download_urls_caps_in_flight(tmp_path):
+    """download_urls delegates to bounded storage and caps concurrency."""
     state = {"in_flight": 0, "max_in_flight": 0}
     lock = asyncio.Lock()
-    clients_created = {"n": 0}
 
-    class _Resp:
-        content = b"%PDF-data"
-
-        def raise_for_status(self):
-            return None
-
-    class _FakeClient:
-        def __init__(self, *a, **k):
-            clients_created["n"] += 1
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *a):
-            return False
-
-        async def get(self, url):
+    async def download(pid):
+        async with lock:
+            state["in_flight"] += 1
+            state["max_in_flight"] = max(
+                state["max_in_flight"], state["in_flight"]
+            )
+        try:
+            await asyncio.sleep(0.02)
+            path = tmp_path / f"{pid}.pdf"
+            path.write_bytes(b"%PDF-data")
+            return path, path.stat().st_size, True
+        finally:
             async with lock:
-                state["in_flight"] += 1
-                state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
-            try:
-                await asyncio.sleep(0.02)
-                return _Resp()
-            finally:
-                async with lock:
-                    state["in_flight"] -= 1
-
-    import httpx
-
-    monkeypatch.setattr(httpx, "AsyncClient", _FakeClient)
+                state["in_flight"] -= 1
 
     client = _client_with_mock_storage(tmp_path)
+    client.storage.download_arxiv_id = download
     raw_ids = [f"2603.{i:05d}" for i in range(20)]
     results = await client.download_urls(raw_ids, concurrency=4)
 
-    assert clients_created["n"] == 1  # ONE shared client across the batch
     assert state["max_in_flight"] <= 4
     assert state["max_in_flight"] >= 2
     assert len(results) == 20
@@ -204,38 +187,23 @@ async def test_download_urls_caps_in_flight(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_download_urls_skips_existing(tmp_path, monkeypatch):
-    """Existing dest files are reported cached without an HTTP fetch."""
+async def test_download_urls_skips_existing(tmp_path):
+    """Storage-reported existing files are returned as cached."""
     existing = tmp_path / "2603.00001.pdf"
     existing.write_bytes(b"%PDF-old")
 
-    fetched = []
+    downloaded = []
 
-    class _Resp:
-        content = b"%PDF-new"
-
-        def raise_for_status(self):
-            return None
-
-    class _FakeClient:
-        def __init__(self, *a, **k):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *a):
-            return False
-
-        async def get(self, url):
-            fetched.append(url)
-            return _Resp()
-
-    import httpx
-
-    monkeypatch.setattr(httpx, "AsyncClient", _FakeClient)
+    async def download(pid):
+        downloaded.append(pid)
+        if pid == "2603.00001":
+            return existing, existing.stat().st_size, False
+        path = tmp_path / f"{pid}.pdf"
+        path.write_bytes(b"%PDF-new")
+        return path, path.stat().st_size, True
 
     client = _client_with_mock_storage(tmp_path)
+    client.storage.download_arxiv_id = download
     results = await client.download_urls(
         ["https://arxiv.org/abs/2603.00001", "2603.00002"]
     )
@@ -243,44 +211,41 @@ async def test_download_urls_skips_existing(tmp_path, monkeypatch):
 
     assert by_id["2603.00001"]["status"] == "cached"
     assert by_id["2603.00002"]["status"] == "downloaded"
-    # Only the uncached id triggered an HTTP fetch.
-    assert fetched == ["https://arxiv.org/pdf/2603.00002"]
+    assert downloaded == ["2603.00001", "2603.00002"]
 
 
 @pytest.mark.asyncio
-async def test_download_urls_aggregates_errors(tmp_path, monkeypatch):
+async def test_download_urls_aggregates_errors(tmp_path):
     """A failing fetch is captured per-item, not raised for the batch."""
 
-    class _FakeClient:
-        def __init__(self, *a, **k):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *a):
-            return False
-
-        async def get(self, url):
-            if "boom" in url or url.endswith("9999"):
-                raise RuntimeError("502 bad gateway")
-
-            class _R:
-                content = b"%PDF"
-
-                def raise_for_status(self):
-                    return None
-
-            return _R()
-
-    import httpx
-
-    monkeypatch.setattr(httpx, "AsyncClient", _FakeClient)
+    async def download(pid):
+        if pid == "2603.09999":
+            raise RuntimeError("sensitive upstream detail")
+        path = tmp_path / f"{pid}.pdf"
+        path.write_bytes(b"%PDF")
+        return path, path.stat().st_size, True
 
     client = _client_with_mock_storage(tmp_path)
+    client.storage.download_arxiv_id = download
     results = await client.download_urls(["2603.00010", "2603.09999"])
     by_id = {r["paper_id"]: r for r in results}
 
     assert by_id["2603.00010"]["status"] == "downloaded"
     assert by_id["2603.09999"]["status"] == "failed"
-    assert "502 bad gateway" in by_id["2603.09999"]["error"]
+    assert by_id["2603.09999"]["error"] == "Download failed"
+
+
+@pytest.mark.asyncio
+async def test_download_urls_rejects_non_arxiv_url(tmp_path):
+    client = _client_with_mock_storage(tmp_path)
+
+    result = await client.download_urls(["https://example.com/paper.pdf"])
+
+    assert result == [
+        {
+            "paper_id": "invalid",
+            "status": "rejected",
+            "error": "Invalid arXiv identifier",
+        }
+    ]
+    client.storage.download_arxiv_id.assert_not_called()

@@ -76,15 +76,15 @@ def _download_worker():
                     BACKGROUND_DOWNLOADS[job_id]["status"] = "failed"
                     BACKGROUND_DOWNLOADS[job_id]["error"] = "Download failed or returned None"
             except Exception as e:
-                logger.error(f"Download worker failed for job {job_id}: {e}")
+                logger.error("Operation failed: error_type=%s", type(e).__name__)
                 BACKGROUND_DOWNLOADS[job_id]["status"] = "failed"
-                BACKGROUND_DOWNLOADS[job_id]["error"] = str(e)
+                BACKGROUND_DOWNLOADS[job_id]["error"] = "Background download failed"
 
             BACKGROUND_DOWNLOADS[job_id]["completed_at"] = datetime.datetime.now(datetime.UTC).isoformat()
             JOB_QUEUE.task_done()
 
         except Exception as e:
-            logger.error(f"Critical error in ScholarX download worker: {e}")
+            logger.error("Operation failed: error_type=%s", type(e).__name__)
             try:
                 JOB_QUEUE.task_done()
             except Exception:  # nosec B110

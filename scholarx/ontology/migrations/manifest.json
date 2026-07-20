@@ -1,0 +1,6 @@
+{
+  "connector": "scholarx",
+  "current_ontology_source": "scholarx",
+  "migrations": [],
+  "schema_version": "1"
+}

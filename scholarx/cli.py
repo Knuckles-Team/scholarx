@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -658,7 +659,9 @@ def cli():
     )
     scan_parser.add_argument(
         "--output-dir",
-        default="/home/apps/workspace/scholarx_papers/daily_scan",
+        default=os.environ.get(
+            "SCHOLARX_OUTPUT_DIR", str(Path.cwd() / "scholarx_papers" / "daily_scan")
+        ),
         help="Directory to save papers and reports",
     )
     scan_parser.add_argument(
@@ -704,13 +707,23 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
     output_dir = Path(args.output_dir)
 
     # Locate the innovation extractor script
-    extractor_paths = [
-        Path.home() / ".gemini/antigravity/skills/comparative-analysis/scripts/extract_innovations.py",
-        Path(
-            "/home/apps/workspace/agent-packages/skills/universal-skills"
-            "/universal_skills/research/comparative-analysis/scripts/extract_innovations.py"
-        ),
-    ]
+    packages_root = Path(
+        os.environ.get("AGENT_PACKAGES_ROOT", str(Path(__file__).resolve().parents[3]))
+    ).expanduser()
+    configured_extractor = os.environ.get("SCHOLARX_ANALYSIS_SCRIPT")
+    extractor_paths = (
+        [Path(configured_extractor).expanduser()] if configured_extractor else []
+    )
+    extractor_paths.append(
+        packages_root
+        / "skills"
+        / "universal-skills"
+        / "universal_skills"
+        / "research"
+        / "comparative-analysis"
+        / "scripts"
+        / "extract_innovations.py"
+    )
     extractor = next((p for p in extractor_paths if p.exists()), None)
 
     if not extractor:
@@ -723,7 +736,7 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
         targets = [Path(t) for t in args.target_projects]
     else:
         # Default: scan the main ecosystem codebases
-        agents_root = Path("/home/apps/workspace/agent-packages")
+        agents_root = packages_root
         targets = [
             agents_root / "agent-utilities",
             agents_root / "agents" / "scholarx",
@@ -796,9 +809,11 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
                 try:
                     subprocess.run(
                         cmd,
-                        capture_output=True,
-                        text=True,
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
                         timeout=60,
+                        check=False,
                     )
                     if out_file.exists():
                         try:
@@ -813,8 +828,11 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
                                 )
                         except json.JSONDecodeError:
                             pass
-                except (subprocess.TimeoutExpired, Exception) as e:
-                    console.print(f"[dim yellow]  ⚠ {paper_name} → {target.name}: {e}[/dim yellow]")
+                except Exception as e:
+                    console.print(
+                        "[dim yellow]  ⚠ Paper analysis failed: "
+                        f"{type(e).__name__}[/dim yellow]"
+                    )
 
             progress.update(analysis_task, advance=1)
 

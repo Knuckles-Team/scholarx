@@ -9,8 +9,11 @@ Rate limit: 1 request per 3 seconds.
 from __future__ import annotations
 
 import logging
-import xml.etree.ElementTree as ET  # nosec B405
 from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from defusedxml import ElementTree as ET
+from defusedxml.common import DefusedXmlException
 
 from ..models import Paper, PaperSource, SearchQuery
 from .base import PaperProvider
@@ -82,7 +85,7 @@ class ArxivProvider(PaperProvider):
                 if len(papers) < fetch_count:
                     break
             except Exception as e:
-                logger.error(f"arXiv search failed at start={start}: {e}")
+                logger.error("arXiv search failed: error_type=%s", type(e).__name__)
                 break
 
         return all_papers
@@ -97,7 +100,9 @@ class ArxivProvider(PaperProvider):
             papers = self._parse_atom_feed(response.text)
             return papers[0] if papers else None
         except Exception as e:
-            logger.error(f"arXiv get_paper failed for {paper_id}: {e}")
+            logger.error(
+                "arXiv paper retrieval failed: error_type=%s", type(e).__name__
+            )
             return None
 
     async def get_recent(
@@ -134,7 +139,7 @@ class ArxivProvider(PaperProvider):
                     return result.papers
                 logger.warning("RSS feed returned no papers, falling back to search API")
             except Exception as e:
-                logger.warning(f"RSS feed failed, falling back to search API: {e}")
+                logger.warning("Operation failed: error_type=%s", type(e).__name__)
 
         # Search API fallback
         cat_query = " OR ".join(f"cat:{cat}" for cat in categories)
@@ -154,7 +159,7 @@ class ArxivProvider(PaperProvider):
             response = await self._get("/query", params=params)
             return self._parse_atom_feed(response.text)
         except Exception as e:
-            logger.error(f"arXiv get_recent failed: {e}")
+            logger.error("Operation failed: error_type=%s", type(e).__name__)
             return []
 
     async def get_categories(self) -> list[dict[str, str]]:
@@ -196,9 +201,11 @@ class ArxivProvider(PaperProvider):
         """Parse arXiv Atom XML response into Paper objects."""
         papers = []
         try:
-            root = ET.fromstring(xml_text)  # nosec B314
-        except ET.ParseError as e:
-            logger.error(f"Failed to parse arXiv XML: {e}")
+            root = ET.fromstring(xml_text)
+        except (ET.ParseError, DefusedXmlException) as e:
+            logger.error(
+                "Failed to parse arXiv XML: error_type=%s", type(e).__name__
+            )
             return []
 
         for entry in root.findall("atom:entry", _NS):
@@ -207,11 +214,11 @@ class ArxivProvider(PaperProvider):
                 if paper:
                     papers.append(paper)
             except Exception as e:
-                logger.warning(f"Failed to parse arXiv entry: {e}")
+                logger.warning("Operation failed: error_type=%s", type(e).__name__)
 
         return papers
 
-    def _parse_entry(self, entry: ET.Element) -> Paper | None:
+    def _parse_entry(self, entry: Any) -> Paper | None:
         """Parse a single Atom entry into a Paper."""
         entry_id = entry.findtext("atom:id", "", _NS)
         if not entry_id:

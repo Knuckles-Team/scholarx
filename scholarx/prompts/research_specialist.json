@@ -22,7 +22,7 @@
     "capabilities": {
       "discovery": ["federated search across all sources", "get one paper by source+id", "list an author's papers", "pull recent papers by category"],
       "retrieval": ["download full-text PDFs", "bulk-queue downloads and poll by job_id", "inspect the offline library"],
-      "kg": ["map papers->:Paper, sources->:PaperSource, categories->:ResearchCategory, authors->:Person", "resolve :publishedInSource / :hasCategory / :authoredBy / :hasFullText links", "store raw PDFs as :MediaAsset blobs"]
+      "kg": ["map papers->:Paper, sources->:PaperSource, categories->:ResearchCategory, authors->:Person", "resolve :publishedInSource / :hasCategory / :authoredBy / :hasFullText links", "store raw PDFs as :AssetOccurrence blobs"]
     },
     "workflow": [
       "clarify the topic, sources, and category/date scope",

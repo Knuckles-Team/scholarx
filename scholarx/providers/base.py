@@ -19,6 +19,7 @@ import httpx
 from ..models import Paper, PaperSource, SearchQuery, SourceConfig
 
 logger = logging.getLogger(__name__)
+_MAX_RETRY_AFTER_SECONDS = 30
 
 
 class PaperProvider(ABC):
@@ -85,7 +86,7 @@ class PaperProvider(ABC):
             base_url=self.config.base_url,
             headers=headers,
             timeout=httpx.Timeout(30.0, connect=10.0),
-            follow_redirects=True,
+            follow_redirects=False,
         )
 
     async def _request(
@@ -110,8 +111,15 @@ class PaperProvider(ABC):
                     headers=headers,
                 )
                 if response.status_code == 429:
-                    retry_after = int(response.headers.get("Retry-After", 5 * (attempt + 1)))
-                    logger.warning(f"Rate limited (429). Retrying after {retry_after}s...")
+                    try:
+                        retry_after = int(response.headers.get("Retry-After", ""))
+                    except ValueError:
+                        retry_after = 5 * (attempt + 1)
+                    retry_after = min(max(retry_after, 0), _MAX_RETRY_AFTER_SECONDS)
+                    logger.warning(
+                        "Rate limited (429); retrying after %d seconds",
+                        retry_after,
+                    )
                     await asyncio.sleep(retry_after)
                     continue
                 response.raise_for_status()

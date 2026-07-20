@@ -24,7 +24,7 @@ extra for the surface you need:
 | Extra | Install | Pulls in |
 |---|---|---|
 | `mcp` | `pip install "scholarx[mcp]"` | FastMCP MCP-server runtime (`agent-utilities[mcp]`) |
-| `agent` | `pip install "scholarx[agent]"` | Pydantic-AI agent + Logfire tracing (`agent-utilities[agent,logfire]`) |
+| `agent` | `pip install "scholarx[agent]"` | Pydantic-AI agent + Logfire tracing (`agent-utilities[agent-runtime,logfire]`) |
 | `all` | `pip install "scholarx[all]"` | Both the MCP server and the agent |
 
 ```bash
@@ -49,15 +49,15 @@ uv run scholarx-mcp
 
 ## Prebuilt Docker image
 
-A multi-stage, slim image is published on every release (entrypoint `scholarx-mcp`):
+A multi-stage runtime image is published on every release (entrypoint `scholarx-mcp`):
 
 ```bash
-docker pull knucklessg1/scholarx:latest
+docker pull example/scholarx@sha256:<digest>
 
 docker run --rm -i \
   -e OSF_TOKEN=... \
   -e S2_API_KEY=... \
-  knucklessg1/scholarx:latest        # stdio transport (default)
+  example/scholarx@sha256:<digest>        # stdio transport (default)
 ```
 
 For an HTTP server with a published port, and to run the agent alongside it, see

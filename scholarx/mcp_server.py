@@ -9,13 +9,10 @@ import asyncio
 import logging
 import sys
 
-from agent_utilities.core.config import setting
-from agent_utilities.mcp_utilities import (
-    load_config,
-    register_tool_surface,
-    resolve_action,
-    run_blocking,
-)
+from agent_utilities.core.config import load_config, setting
+from agent_utilities.mcp.action_dispatch import resolve_action
+from agent_utilities.mcp.concurrency import run_blocking
+from agent_utilities.mcp.verbose_tools import register_tool_surface
 from fastmcp import Context
 from pydantic import Field
 
@@ -27,6 +24,11 @@ __version__ = "1.0.1"
 # background queue. Kept well under the MCP child-call timeout so a slow source
 # can never hold the (serialized) server slot open and wedge subsequent calls.
 _INLINE_DOWNLOAD_BUDGET_S = 60.0
+_MAX_DIRECT_DOWNLOAD_IDS = 20
+_MAX_DIRECT_DOWNLOAD_INPUT_CHARS = 4096
+_MAX_DIRECT_DOWNLOAD_SECONDS = 180.0
+_MAX_BULK_DOWNLOAD_IDS = 100
+_MAX_BULK_DOWNLOAD_SECONDS = 180.0
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +64,7 @@ def _auto_ingest_papers(papers) -> None:
 
         ingest_papers(papers)
     except Exception as e:  # noqa: BLE001 — KG ingestion is never fatal to a search
-        logger.debug(f"KG paper ingestion skipped: {e}")
+        logger.debug("Operation failed: error_type=%s", type(e).__name__)
 
 
 # ── Tool Registration Functions ─────────────────────────────────────────────
@@ -245,7 +247,13 @@ def register_storage_tools(mcp):
         if action == "download":
             if not source or not paper_ids:
                 return {"error": "'source' and 'paper_ids' required for 'download' action"}
+            if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
+                return {"error": "'paper_ids' input limit exceeded"}
             pid = paper_ids.split(",")[0].strip()
+            try:
+                paper_source = PaperSource(source)
+            except ValueError:
+                return {"error": "Invalid paper source"}
 
             # Check local storage first
             stored = await run_blocking(client.storage.list_stored_papers)
@@ -255,7 +263,7 @@ def register_storage_tools(mcp):
                     if local_path and __import__("pathlib").Path(local_path).exists():
                         return {"status": "already_exists", "local_path": local_path, "paper_id": p.get("id")}
 
-            paper = await client.get_paper(PaperSource(source), pid)
+            paper = await client.get_paper(paper_source, pid)
             if not paper:
                 return {"error": "Paper not found"}
             if ctx:
@@ -286,57 +294,93 @@ def register_storage_tools(mcp):
             }
 
         if action == "download_url":
-            # Direct URL-based download — bypasses the arXiv API entirely.
-            # Accepts paper_ids as arXiv IDs (e.g. "2603.09022") or full URLs
-            # (e.g. "https://arxiv.org/abs/2603.09022").
             if not paper_ids:
                 return {"error": "'paper_ids' required for 'download_url' action"}
+            if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
+                return {"error": "'paper_ids' input limit exceeded"}
             from typing import Any
 
+            from scholarx.paper_storage import normalize_arxiv_id
+
+            raw_ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
+            if len(raw_ids) > _MAX_DIRECT_DOWNLOAD_IDS:
+                return {"error": "direct download count limit exceeded"}
+
             results: list[dict[str, Any]] = []
-            for raw_id in [i.strip() for i in paper_ids.split(",") if i.strip()]:
-                # Extract arXiv ID from URL if provided
-                pid = raw_id
-                for prefix in ("https://arxiv.org/abs/", "https://arxiv.org/pdf/", "http://arxiv.org/abs/"):
-                    if raw_id.startswith(prefix):
-                        pid = raw_id.split(prefix)[-1].rstrip("/")
-                        break
-                # Strip version suffix for filename, keep for URL
-                base_id = pid.split("v")[0] if "v" in pid and pid[-1].isdigit() else pid
-                pdf_url = f"https://arxiv.org/pdf/{pid}"
-                dest = client.storage.storage_dir / f"{base_id}.pdf"
-                if dest.exists():
-                    results.append({"paper_id": pid, "status": "already_exists", "local_path": str(dest)})
+            deadline = asyncio.get_running_loop().time() + _MAX_DIRECT_DOWNLOAD_SECONDS
+            for raw_id in raw_ids:
+                try:
+                    pid = normalize_arxiv_id(raw_id)
+                except ValueError:
+                    results.append(
+                        {
+                            "paper_id": "invalid",
+                            "status": "rejected",
+                            "error": "Invalid arXiv identifier",
+                        }
+                    )
                     continue
                 try:
-                    import httpx as _httpx
-
-                    async with _httpx.AsyncClient(
-                        timeout=_httpx.Timeout(120.0, connect=30.0),
-                        follow_redirects=True,
-                    ) as http:
-                        resp = await http.get(pdf_url)
-                        resp.raise_for_status()
-                        dest.write_bytes(resp.content)
-                        results.append(
-                            {
-                                "paper_id": pid,
-                                "status": "downloaded",
-                                "local_path": str(dest),
-                                "size_bytes": len(resp.content),
-                            }
-                        )
-                except Exception as e:
-                    results.append({"paper_id": pid, "status": "failed", "error": str(e)})
+                    remaining = deadline - asyncio.get_running_loop().time()
+                    if remaining <= 0:
+                        raise TimeoutError
+                    path, size_bytes, created = await asyncio.wait_for(
+                        client.storage.download_arxiv_id(pid),
+                        timeout=remaining,
+                    )
+                    results.append(
+                        {
+                            "paper_id": pid,
+                            "status": "downloaded" if created else "already_exists",
+                            "local_path": str(path),
+                            "size_bytes": size_bytes,
+                        }
+                    )
+                except TimeoutError:
+                    results.append(
+                        {
+                            "paper_id": pid,
+                            "status": "failed",
+                            "error": "direct download time limit exceeded",
+                        }
+                    )
+                    break
+                except Exception:
+                    results.append(
+                        {
+                            "paper_id": pid,
+                            "status": "failed",
+                            "error": "Operation failed",
+                        }
+                    )
             return {"results": results}
 
         if action == "bulk_download":
             if not source or not paper_ids:
                 return {"error": "'source' and 'paper_ids' required for 'bulk_download' action"}
+            if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
+                return {"error": "'paper_ids' input limit exceeded"}
             ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
+            if len(ids) > _MAX_BULK_DOWNLOAD_IDS:
+                return {"error": "bulk download count limit exceeded"}
+            try:
+                paper_source = PaperSource(source)
+            except ValueError:
+                return {"error": "Invalid paper source"}
             results = []
             stored = await run_blocking(client.storage.list_stored_papers)
+            deadline = asyncio.get_running_loop().time() + _MAX_BULK_DOWNLOAD_SECONDS
             for pid in ids:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    results.append(
+                        {
+                            "paper_id": pid,
+                            "status": "failed",
+                            "error": "bulk download time limit exceeded",
+                        }
+                    )
+                    break
                 # Check local storage first
                 already_exists = False
                 for p in stored:
@@ -349,7 +393,19 @@ def register_storage_tools(mcp):
                 if already_exists:
                     continue
 
-                paper = await client.get_paper(PaperSource(source), pid)
+                try:
+                    paper = await asyncio.wait_for(
+                        client.get_paper(paper_source, pid), timeout=remaining
+                    )
+                except TimeoutError:
+                    results.append(
+                        {
+                            "paper_id": pid,
+                            "status": "failed",
+                            "error": "bulk download time limit exceeded",
+                        }
+                    )
+                    break
                 if not paper:
                     results.append({"paper_id": pid, "status": "failed", "error": "Paper not found"})
                     continue
@@ -436,7 +492,7 @@ def register_prompts(mcp):
 
 def get_mcp_instance():
     """Create and configure the MCP server instance."""
-    from agent_utilities.mcp_utilities import create_mcp_server
+    from agent_utilities.mcp.server_factory import create_mcp_server
 
     args, mcp, middlewares = create_mcp_server(
         name="ScholarX MCP",
@@ -475,7 +531,7 @@ def mcp_server():
     args, mcp = get_mcp_instance()
 
     transport = getattr(args, "transport", setting("TRANSPORT", "stdio"))
-    host = getattr(args, "host", setting("HOST", "0.0.0.0"))  # nosec B104
+    host = getattr(args, "host", setting("HOST", "127.0.0.1"))
     port = int(getattr(args, "port", setting("PORT", "9600")))
 
     if transport == "stdio":

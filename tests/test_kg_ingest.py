@@ -1,12 +1,15 @@
 """Native epistemic-graph typed-node ingestion — Wire-First coverage.
 
 Exercises the real ``ingest_entities`` / ``ingest_documents`` / ``ingest_papers`` seam with a
-fake engine client (no engine required), asserting the txn add_node/commit + edge calls and the
+fake engine client (no engine required), asserting the single-transaction node/edge staging and commit and the
 ScholarX Paper -> :Paper/:PaperSource/:ResearchCategory/:Person mapping.
 CONCEPT:AU-KG.ingest.enterprise-source-extractor.
 """
 
 from __future__ import annotations
+
+import pytest
+from agent_utilities.knowledge_graph.memory.native_ingest import NativeIngestError
 
 from scholarx.kg_ingest import ingest_documents, ingest_entities, ingest_papers, paper_entities
 from scholarx.models import Paper, PaperSource
@@ -15,6 +18,7 @@ from scholarx.models import Paper, PaperSource
 class _FakeTxn:
     def __init__(self):
         self.nodes = {}
+        self.edges = []
         self.committed = False
         self.graph = None
 
@@ -25,23 +29,17 @@ class _FakeTxn:
     def add_node(self, txn, node_id, props):
         self.nodes[node_id] = props
 
+    def add_edge(self, txn, source, target, props):
+        self.edges.append((source, target, props))
+
     def commit(self, txn):
         self.committed = True
         return True
 
 
-class _FakeEdges:
-    def __init__(self):
-        self.edges = []
-
-    def add(self, src, dst, props):
-        self.edges.append((src, dst, props))
-
-
 class _FakeClient:
     def __init__(self):
         self.txn = _FakeTxn()
-        self.edges = _FakeEdges()
 
 
 def _paper() -> Paper:
@@ -63,8 +61,8 @@ def _paper() -> Paper:
 def test_ingest_entities_writes_nodes_and_edges():
     c = _FakeClient()
     res = ingest_entities(
-        [{"id": "a", "type": "Paper", "name": "p"}, {"id": "b", "type": "PaperSource"}],
-        [{"source": "a", "target": "b", "type": "publishedInSource"}],
+        [{"id": "a", "node_type": "Paper", "name": "p"}, {"id": "b", "node_type": "PaperSource"}],
+        [{"source": "a", "target": "b", "relationship": "publishedInSource"}],
         client=c,
         graph="__commons__",
     )
@@ -74,27 +72,27 @@ def test_ingest_entities_writes_nodes_and_edges():
     # provenance is stamped
     assert c.txn.nodes["a"]["source"] == "scholarx"
     assert c.txn.nodes["a"]["domain"] == "scholarx"
-    assert c.edges.edges == [("a", "b", {"type": "publishedInSource"})]
+    assert c.txn.edges == [("a", "b", {"relationship": "publishedInSource"})]
 
 
 def test_paper_entities_maps_paper_source_category_author():
     entities, rels = paper_entities([_paper()])
     by_id = {e["id"]: e for e in entities}
     pid = "scholarx:paper:2603.09022"
-    assert by_id[pid]["type"] == "Paper"
+    assert by_id[pid]["node_type"] == "Paper"
     assert by_id[pid]["externalToolId"] == "2603.09022"
     assert by_id[pid]["doi"] == "10.1234/abc"
     # abstract carried as searchable text (document modality)
     assert by_id[pid]["text"] == "We study emergent coordination."
     assert by_id[pid]["citationCount"] == 7
-    assert by_id["scholarx:source:arxiv"]["type"] == "PaperSource"
-    assert by_id["scholarx:category:cs.ai"]["type"] == "ResearchCategory"
-    assert by_id["scholarx:person:ada-lovelace"]["type"] == "Person"
-    rel_types = {(r["type"]) for r in rels}
+    assert by_id["scholarx:source:arxiv"]["node_type"] == "PaperSource"
+    assert by_id["scholarx:category:cs.ai"]["node_type"] == "ResearchCategory"
+    assert by_id["scholarx:person:ada-lovelace"]["node_type"] == "Person"
+    rel_types = {(r["relationship"]) for r in rels}
     assert rel_types == {"publishedInSource", "hasCategory", "authoredBy"}
     # one publishedInSource, two categories, two authors
-    assert sum(1 for r in rels if r["type"] == "authoredBy") == 2
-    assert sum(1 for r in rels if r["type"] == "hasCategory") == 2
+    assert sum(1 for r in rels if r["relationship"] == "authoredBy") == 2
+    assert sum(1 for r in rels if r["relationship"] == "hasCategory") == 2
 
 
 def test_ingest_papers_dedups_shared_nodes():
@@ -125,16 +123,15 @@ def test_ingest_documents_writes_document_nodes():
         graph="__commons__",
     )
     assert res == {"nodes": 1, "edges": 0}
-    assert c.txn.nodes["scholarx:document:x"]["type"] == "Document"
+    assert c.txn.nodes["scholarx:document:x"]["node_type"] == "Document"
     assert c.txn.nodes["scholarx:document:x"]["text"] == "hello"
 
 
-def test_ingest_noops_without_engine():
-    # No injected client + no reachable engine -> clean no-op.
-    assert ingest_entities([{"id": "a", "type": "Paper"}]) is None
+def test_retired_structural_alias_is_rejected():
+    with pytest.raises(NativeIngestError, match="canonical node_type"):
+        ingest_entities([{"id": "a", "type": "Paper"}], client=_FakeClient())
 
 
-def test_ingest_empty_is_noop():
-    assert ingest_entities([], client=_FakeClient()) is None
-    assert ingest_papers([], client=_FakeClient()) is None
-    assert ingest_documents([], client=_FakeClient()) is None
+def test_empty_native_ingest_is_rejected():
+    with pytest.raises(NativeIngestError, match="at least one entity"):
+        ingest_entities([], client=_FakeClient())

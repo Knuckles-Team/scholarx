@@ -1,0 +1,20 @@
+schema_version: '1'
+connector: scholarx
+ontology_source: scholarx
+sync:
+- preset: scholarx-papers
+  server: scholarx-mcp
+  tool: sx_search
+  action: search
+  records_path: papers
+  id_field: id
+  title_field: title
+  text_field: abstract
+  updated_field: published_date
+  doc_type: research_paper
+  tool_schema_sha256: 60226a567d4e8c45a92faa315e608383e16ba4dc5de9a6db610783ba885c30ca
+governance:
+  default_acl: quarantine
+  identity: opaque-reference
+  tenant: required-at-materialization
+  provenance: required-at-materialization

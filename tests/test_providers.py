@@ -721,6 +721,18 @@ async def test_rss_feed_provider_malformed_xml():
     assert result.total_items == 0
 
 
+def test_external_entities_are_rejected_by_all_arxiv_parsers():
+    hostile_xml = """<!DOCTYPE feed [<!ENTITY injected "unexpected">]>
+    <feed xmlns="http://www.w3.org/2005/Atom"><title>&injected;</title></feed>"""
+
+    rss_result = RSSFeedProvider()._parse_rss_feed(hostile_xml, "cs.AI")
+    atom_result = ArxivProvider()._parse_atom_feed(hostile_xml)
+
+    assert rss_result.papers == []
+    assert rss_result.feed_title == ""
+    assert atom_result == []
+
+
 @pytest.mark.asyncio
 async def test_rss_feed_provider_empty_channel():
     xml = "<?xml version='1.0'?><rss></rss>"

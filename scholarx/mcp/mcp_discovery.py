@@ -3,7 +3,7 @@
 Auto-generated from mcp_server.py during ecosystem standardization.
 """
 
-from agent_utilities.mcp_utilities import resolve_action
+from agent_utilities.mcp.action_dispatch import resolve_action
 from fastmcp import Context
 from pydantic import Field
 

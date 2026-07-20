@@ -10,7 +10,7 @@
 # categories, and full-text PDFs, across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF
 # and Semantic Scholar. All classes and properties live in the shared `:` (kg#)
 # namespace; only the owl:Ontology node gets the per-package IRI. Reuses the shared
-# :Person (authors), :Document (abstract/full text), :MediaAsset / :Blob (raw PDF)
+# :Person (authors), :Document (abstract/full text), :AssetOccurrence / :Blob (raw PDF)
 # classes — it never redefines them. Backs the scholarx MCP tool surface
 # (sx_search / sx_info / sx_storage / scholarx_ingest_papers).
 
@@ -57,9 +57,9 @@
 
 :hasFullText a owl:ObjectProperty ;
     rdfs:label "has full text" ;
-    rdfs:comment "Links a Paper to the MediaAsset holding its downloaded full-text PDF blob." ;
+    rdfs:comment "Links a Paper to the AssetOccurrence holding its downloaded full-text PDF blob." ;
     rdfs:domain :Paper ;
-    rdfs:range :MediaAsset .
+    rdfs:range :AssetOccurrence .
 
 # --- fields (owl:DatatypeProperty) ---
 
@@ -102,7 +102,7 @@
     rdfs:label "ScholarX Research-Paper Ontology" ;
     rdfs:comment """ScholarX research-paper model — papers and their preprint/journal
     source repositories, subject categories, authors (shared :Person), abstracts and
-    full-text PDFs (shared :Document / :MediaAsset) — federated into the agent-utilities
+    full-text PDFs (shared :Document / :AssetOccurrence) — federated into the agent-utilities
     knowledge-graph hub across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF and
     Semantic Scholar.""" ;
     owl:imports <http://knuckles.team/kg> .

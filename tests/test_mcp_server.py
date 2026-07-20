@@ -1,14 +1,14 @@
-import asyncio
-import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from fastmcp import Context
-from scholarx.models import Paper, PaperSource, SearchResult, SourceStatus
+
 from scholarx.mcp_server import (
-    register_prompts,
     get_mcp_instance,
     mcp_server,
+    register_prompts,
 )
+from scholarx.models import Paper, PaperSource, SearchResult, SourceStatus
 
 # ── Mock MCP Helper ─────────────────────────────────────────────────────────
 
@@ -333,38 +333,50 @@ async def test_sx_storage_download_url(mock_client, tmp_path):
     err = await call_sx_storage(action="download_url")
     assert err == {"error": "'paper_ids' required for 'download_url' action"}
 
-    # Setup mock destination
-    mock_client.storage.storage_dir = tmp_path
-
-    # Mock HTTP response content
-    mock_response = MagicMock()
-    mock_response.content = b"PDF content bytes"
-    mock_response.raise_for_status = MagicMock()
-
-    mock_http_client = AsyncMock()
-    mock_http_client.__aenter__.return_value = mock_http_client
-    mock_http_client.get = AsyncMock(return_value=mock_response)
+    destination = tmp_path / "2603.09022.pdf"
+    mock_client.storage.download_arxiv_id = AsyncMock(
+        side_effect=[
+            (destination, len(b"%PDF-1.7"), True),
+            (destination, len(b"%PDF-1.7"), False),
+            RuntimeError("network timeout"),
+        ]
+    )
 
     with patch("scholarx.mcp_server._get_client", return_value=mock_client):
-        with patch("httpx.AsyncClient", return_value=mock_http_client):
-            # Test download with url
-            res = await call_sx_storage(action="download_url", paper_ids="https://arxiv.org/abs/2603.09022")
+        # Test download with URL
+        res = await call_sx_storage(action="download_url", paper_ids="https://arxiv.org/abs/2603.09022")
 
-            results = res["results"]
-            assert len(results) == 1
-            assert results[0]["paper_id"] == "2603.09022"
-            assert results[0]["status"] == "downloaded"
-            assert results[0]["size_bytes"] == len(b"PDF content bytes")
+        results = res["results"]
+        assert len(results) == 1
+        assert results[0]["paper_id"] == "2603.09022"
+        assert results[0]["status"] == "downloaded"
+        assert results[0]["size_bytes"] == len(b"%PDF-1.7")
 
-            # Try again, now it already exists
-            res_exists = await call_sx_storage(action="download_url", paper_ids="https://arxiv.org/abs/2603.09022")
-            assert res_exists["results"][0]["status"] == "already_exists"
+        # Try again, now it already exists
+        res_exists = await call_sx_storage(action="download_url", paper_ids="https://arxiv.org/abs/2603.09022")
+        assert res_exists["results"][0]["status"] == "already_exists"
 
-            # Test exception raising/handling
-            mock_http_client.get = AsyncMock(side_effect=Exception("network timeout"))
-            res_fail = await call_sx_storage(action="download_url", paper_ids="9999.9999")
-            assert res_fail["results"][0]["status"] == "failed"
-            assert "network timeout" in res_fail["results"][0]["error"]
+        # Exceptions are sanitized at the MCP boundary.
+        res_fail = await call_sx_storage(action="download_url", paper_ids="9999.9999")
+        assert res_fail["results"][0] == {
+            "paper_id": "9999.9999",
+            "status": "failed",
+            "error": "Operation failed",
+        }
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_download_url_rejects_traversal(mock_client):
+    mock_client.storage.download_arxiv_id = AsyncMock()
+
+    with patch("scholarx.mcp_server._get_client", return_value=mock_client):
+        result = await call_sx_storage(
+            action="download_url", paper_ids="../../outside,https://example.com/a.pdf"
+        )
+
+    assert [item["status"] for item in result["results"]] == ["rejected", "rejected"]
+    mock_client.storage.download_arxiv_id.assert_not_awaited()
 
 
 @pytest.mark.concept("SX-1.0")
@@ -422,7 +434,7 @@ def test_prompts():
 
 @pytest.mark.concept("SX-1.0")
 def test_get_mcp_instance():
-    with patch("agent_utilities.mcp_utilities.create_mcp_server", return_value=(MagicMock(), MagicMock(), [])):
+    with patch("agent_utilities.mcp.server_factory.create_mcp_server", return_value=(MagicMock(), MagicMock(), [])):
         args, mcp = get_mcp_instance()
         assert args is not None
         assert mcp is not None

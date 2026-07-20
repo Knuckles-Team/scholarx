@@ -41,7 +41,7 @@ class SemanticScholarProvider(PaperProvider):
             data = resp.json()
             return [p for p in (self._parse(i) for i in data.get("data", [])) if p]
         except Exception as e:
-            logger.error(f"Semantic Scholar search failed: {e}")
+            logger.error("Operation failed: error_type=%s", type(e).__name__)
             return []
 
     async def get_paper(self, paper_id: str) -> Paper | None:
@@ -51,7 +51,7 @@ class SemanticScholarProvider(PaperProvider):
             resp = await self._get(f"/paper/{clean_id}", params={"fields": _FIELDS}, headers=headers)
             return self._parse(resp.json())
         except Exception as e:
-            logger.error(f"Semantic Scholar get_paper failed for {paper_id}: {e}")
+            logger.error("Operation failed: error_type=%s", type(e).__name__)
             return None
 
     async def get_recent(self, categories: list[str] | None = None, days: int = 1) -> list[Paper]:
@@ -64,7 +64,7 @@ class SemanticScholarProvider(PaperProvider):
             resp = await self._get("/paper/search", params=params, headers=headers)
             return [p for p in (self._parse(i) for i in resp.json().get("data", [])) if p]
         except Exception as e:
-            logger.error(f"Semantic Scholar get_recent failed: {e}")
+            logger.error("Operation failed: error_type=%s", type(e).__name__)
             return []
 
     def _parse(self, item: dict) -> Paper | None:

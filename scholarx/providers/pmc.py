@@ -37,7 +37,7 @@ class PMCProvider(PaperProvider):
             # Step 2: efetch to get full metadata
             return await self._fetch_details(id_list)
         except Exception as e:
-            logger.error(f"PMC search failed: {e}")
+            logger.error("PMC search failed: error_type=%s", type(e).__name__)
             return []
 
     async def get_paper(self, paper_id: str) -> Paper | None:
@@ -48,7 +48,9 @@ class PMCProvider(PaperProvider):
             papers = await self._fetch_details([clean_id])
             return papers[0] if papers else None
         except Exception as e:
-            logger.error(f"PMC get_paper failed for {paper_id}: {e}")
+            logger.error(
+                "PMC paper retrieval failed: error_type=%s", type(e).__name__
+            )
             return None
 
     async def get_recent(self, categories: list[str] | None = None, days: int = 1) -> list[Paper]:
@@ -79,7 +81,7 @@ class PMCProvider(PaperProvider):
                 return []
             return await self._fetch_details(id_list)
         except Exception as e:
-            logger.error(f"PMC get_recent failed: {e}")
+            logger.error("Operation failed: error_type=%s", type(e).__name__)
             return []
 
     # ── Private Helpers ──────────────────────────────────────────────────
@@ -185,5 +187,7 @@ class PMCProvider(PaperProvider):
 
             return papers
         except Exception as e:
-            logger.error(f"PMC fetch_details failed: {e}")
+            logger.error(
+                "PMC detail retrieval failed: error_type=%s", type(e).__name__
+            )
             return []

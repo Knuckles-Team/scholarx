@@ -7,14 +7,10 @@ fetches into the ONE epistemic-graph knowledge graph as **typed OWL nodes** (``:
 its abstract as searchable ``text`` — as the **document** modality in the same node. Raw PDF
 bytes ride the **blob** path in :mod:`scholarx.kg_media`.
 
-The write path is the shared fleet primitive
-``agent_utilities.knowledge_graph.memory.native_ingest`` (the lightweight
-``GraphComputeEngine()._client`` + ``txn`` — never the heavy in-process engine). That primitive
-is not yet in every installed ``agent_utilities``, so it is imported **guarded**: when it is
-absent this module falls back to a self-contained txn writer with identical semantics. Either
-way everything is engine-guarded — with no reachable engine every entry point **no-ops**
-(returns ``None``), so ScholarX runs with zero KG infrastructure. Node ids follow
-``scholarx:<class>:<externalId>`` and ``type`` matches the classes federated by
+The write path is the required shared fleet transaction primitive
+``agent_utilities.knowledge_graph.memory.native_ingest``. Engine failures are explicit and
+partial writes are never acknowledged. Node ids follow
+``scholarx:<class>:<externalId>`` and ``node_type`` matches the classes federated by
 ``scholarx.ontology``.
 """
 
@@ -22,92 +18,19 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 from typing import Any
+
+from agent_utilities.knowledge_graph.memory.native_ingest import (
+    ingest_documents as _native_ingest_documents,
+)
+from agent_utilities.knowledge_graph.memory.native_ingest import (
+    ingest_entities as _native_ingest_entities,
+)
 
 logger = logging.getLogger("scholarx.kg")
 
 _SOURCE = "scholarx"
 _DOMAIN = "scholarx"
-_DEFAULT_GRAPH = "__commons__"
-
-
-# ── Write path: prefer the shared primitive, else a self-contained fallback ──────────
-
-
-def _primitive() -> Any | None:
-    """Return the shared ``native_ingest`` module, or ``None`` when it is not installed."""
-    try:
-        from agent_utilities.knowledge_graph.memory import native_ingest
-
-        return native_ingest
-    except Exception as e:  # noqa: BLE001 — primitive not shipped in this agent_utilities
-        logger.debug("scholarx KG: shared native_ingest unavailable (%s); using fallback", e)
-        return None
-
-
-def _client() -> tuple[Any | None, str]:
-    """Fallback engine-client resolver (used only when the shared primitive is absent)."""
-    try:
-        from agent_utilities.knowledge_graph.core.graph_compute import GraphComputeEngine
-    except Exception as e:  # noqa: BLE001 — KG stack absent
-        logger.debug("scholarx KG ingest unavailable (import): %s", e)
-        return None, ""
-    try:
-        engine = GraphComputeEngine()
-        client = getattr(engine, "_client", None)
-        if client is None:
-            return None, ""
-        return client, (getattr(engine, "graph_name", None) or _DEFAULT_GRAPH)
-    except Exception as e:  # noqa: BLE001 — engine unreachable
-        logger.debug("scholarx KG ingest: engine unreachable: %s", e)
-        return None, ""
-
-
-def _fallback_write(
-    nodes: list[dict[str, Any]],
-    relationships: list[dict[str, Any]] | None,
-    *,
-    source: str,
-    domain: str,
-    client: Any | None,
-    graph: str | None,
-) -> dict[str, int] | None:
-    """Self-contained txn writer mirroring the shared primitive's semantics."""
-    nodes = [n for n in nodes if n.get("id")]
-    if not nodes:
-        return None
-    if client is None:
-        client, graph = _client()
-    if client is None:
-        return None
-    graph = graph or _DEFAULT_GRAPH
-    try:
-        txn = client.txn.begin(graph=graph)
-        for node in nodes:
-            props = {k: v for k, v in node.items() if k != "id" and v is not None}
-            props.setdefault("source", source)
-            props.setdefault("domain", domain)
-            client.txn.add_node(txn, node["id"], props)
-        committed = client.txn.commit(txn)
-    except Exception as e:  # noqa: BLE001 — engine/txn failure is non-fatal
-        logger.warning("scholarx KG ingest: txn failed: %s", e)
-        return None
-    if not committed:
-        logger.warning("scholarx KG ingest: txn not committed (conflict)")
-        return None
-
-    edges = 0
-    for rel in relationships or []:
-        try:
-            client.edges.add(rel["source"], rel["target"], {"type": rel.get("type", "RELATED")})
-            edges += 1
-        except Exception as e:  # noqa: BLE001 — pure edge link, best-effort
-            logger.debug("scholarx KG ingest: edge skipped: %s", e)
-    logger.info("scholarx KG ingest: wrote %d nodes, %d edges", len(nodes), edges)
-    return {"nodes": len(nodes), "edges": edges}
-
-
 def ingest_entities(
     entities: list[dict[str, Any]],
     relationships: list[dict[str, Any]] | None = None,
@@ -116,21 +39,19 @@ def ingest_entities(
     domain: str = _DOMAIN,
     client: Any | None = None,
     graph: str | None = None,
-) -> dict[str, int] | None:
+) -> dict[str, int]:
     """Write typed OWL nodes (+ edges) into the engine.
 
-    ``entities``: ``[{"id":..., "type":<owl:Class>, ...props}]``.
-    ``relationships``: ``[{"source":id, "target":id, "type":<link>}]``.
-    Returns ``{"nodes":n, "edges":m}`` or ``None``. ``client``/``graph`` may be injected
-    (tests); otherwise resolved on demand. Never raises.
+    Nodes use ``node_type`` and relationships use ``relationship``.
     """
-    if not entities:
-        return None
-    if client is None:
-        prim = _primitive()
-        if prim is not None:
-            return prim.ingest_entities(entities, relationships, source=source, domain=domain, graph=graph)
-    return _fallback_write(entities, relationships, source=source, domain=domain, client=client, graph=graph)
+    return _native_ingest_entities(
+        entities,
+        relationships,
+        source=source,
+        domain=domain,
+        client=client,
+        graph=graph,
+    )
 
 
 def ingest_documents(
@@ -140,33 +61,15 @@ def ingest_documents(
     domain: str = _DOMAIN,
     client: Any | None = None,
     graph: str | None = None,
-) -> dict[str, int] | None:
+) -> dict[str, int]:
     """Write text records as ``:Document`` nodes (semantic-search fodder).
 
     Each doc: ``{"id":..., "text":..., "title"?:..., "source_uri"?:..., ...props}``.
-    Returns ``{"nodes":n, "edges":0}`` or ``None``. Never raises.
+    The native primitive performs validation, enrichment stamping, and commit.
     """
-    if not docs:
-        return None
-    if client is None:
-        prim = _primitive()
-        if prim is not None:
-            return prim.ingest_documents(docs, source=source, domain=domain, graph=graph)
-    # Fallback: shape docs into :Document nodes just like the primitive does.
-    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    nodes: list[dict[str, Any]] = []
-    for doc in docs:
-        did = doc.get("id")
-        text = doc.get("text") or doc.get("content")
-        if not did or not text:
-            continue
-        node = {k: v for k, v in doc.items() if k not in ("content",) and v is not None}
-        node["id"] = did
-        node["type"] = "Document"
-        node["text"] = text
-        node.setdefault("created_at", now)
-        nodes.append(node)
-    return _fallback_write(nodes, None, source=source, domain=domain, client=client, graph=graph)
+    return _native_ingest_documents(
+        docs, source=source, domain=domain, client=client, graph=graph
+    )
 
 
 # ── Mapper: ScholarX Paper records → typed :Paper / :PaperSource / :Person / :ResearchCategory
@@ -215,7 +118,7 @@ def paper_entities(
         _add(
             {
                 "id": paper_node_id,
-                "type": "Paper",
+                "node_type": "Paper",
                 "name": p.get("title"),
                 "title": p.get("title"),
                 "text": abstract or p.get("title"),
@@ -232,20 +135,20 @@ def paper_entities(
 
         if src:
             source_id = f"scholarx:source:{_slug(str(src))}"
-            _add({"id": source_id, "type": "PaperSource", "name": str(src)})
-            relationships.append({"source": paper_node_id, "target": source_id, "type": "publishedInSource"})
+            _add({"id": source_id, "node_type": "PaperSource", "name": str(src)})
+            relationships.append({"source": paper_node_id, "target": source_id, "relationship": "publishedInSource"})
 
         for cat in p.get("categories") or []:
             cat_id = f"scholarx:category:{_slug(str(cat))}"
-            _add({"id": cat_id, "type": "ResearchCategory", "name": str(cat)})
-            relationships.append({"source": paper_node_id, "target": cat_id, "type": "hasCategory"})
+            _add({"id": cat_id, "node_type": "ResearchCategory", "name": str(cat)})
+            relationships.append({"source": paper_node_id, "target": cat_id, "relationship": "hasCategory"})
 
         for author in (p.get("authors") or [])[:20]:
             if not author:
                 continue
             person_id = f"scholarx:person:{_slug(str(author), 80)}"
-            _add({"id": person_id, "type": "Person", "name": str(author)})
-            relationships.append({"source": paper_node_id, "target": person_id, "type": "authoredBy"})
+            _add({"id": person_id, "node_type": "Person", "name": str(author)})
+            relationships.append({"source": paper_node_id, "target": person_id, "relationship": "authoredBy"})
 
     return entities, relationships
 

@@ -13,10 +13,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import xml.etree.ElementTree as ET  # nosec B405
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
+from defusedxml import ElementTree as ET
+from defusedxml.common import DefusedXmlException
 
 from ..models import Paper, PaperSource
 
@@ -151,13 +153,16 @@ class RSSFeedProvider:
 
             async def _fetch(category: str) -> tuple[str, str | None]:
                 feed_url = f"{ARXIV_RSS_BASE}/{category.lower()}"
-                logger.info(f"Fetching RSS feed: {feed_url}")
+                logger.info("Fetching an RSS category feed")
                 try:
                     response = await client.get(feed_url)
                     response.raise_for_status()
                     return category, response.text
                 except Exception as e:
-                    logger.error(f"Failed to fetch RSS feed {feed_url}: {e}")
+                    logger.error(
+                        "Failed to fetch RSS category feed: error_type=%s",
+                        type(e).__name__,
+                    )
                     return category, None
 
             responses = await asyncio.gather(*(_fetch(c) for c in categories))
@@ -189,9 +194,11 @@ class RSSFeedProvider:
         result = RSSFeedResult()
 
         try:
-            root = ET.fromstring(xml_text)  # nosec B314
-        except ET.ParseError as e:
-            logger.error(f"Failed to parse RSS XML: {e}")
+            root = ET.fromstring(xml_text)
+        except (ET.ParseError, DefusedXmlException) as e:
+            logger.error(
+                "Failed to parse RSS XML: error_type=%s", type(e).__name__
+            )
             return result
 
         channel = root.find("channel")
@@ -234,7 +241,7 @@ class RSSFeedProvider:
 
         return result
 
-    def _parse_rss_item(self, item: ET.Element) -> Paper | None:
+    def _parse_rss_item(self, item: Any) -> Paper | None:
         """Parse a single RSS <item> into a Paper object."""
         title = item.findtext("title", "").strip()
         link = item.findtext("link", "").strip()
