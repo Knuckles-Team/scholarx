@@ -1,5 +1,6 @@
 ---
 name: scholarx-operations
+skill_type: skill
 description: >-
   Operate scholarx through its governed MCP and GraphOS capabilities, including scholarx kg ingestion, scholarx paper library, scholarx paper search. Use when a request requires this provider's read, change, automation, ingestion, troubleshooting, or evidence workflows.
 ---
