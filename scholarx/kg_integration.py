@@ -185,7 +185,7 @@ class ScholarXKGBridge:
                 importance_score=0.6,
                 timestamp=timestamp,
             )
-            self.engine.graph.add_node(article_id, **article_node.model_dump())
+            self.engine.graph.add_node(article_id, **article_node.to_graph_properties(exclude={"id"}))
 
             # Create SourceNode for citation info
             source_id = f"source:scholarx:{paper.id.replace(':', '-')}"
@@ -201,8 +201,8 @@ class ScholarXKGBridge:
                 importance_score=0.5,
                 timestamp=timestamp,
             )
-            self.engine.graph.add_node(source_id, **source_node.model_dump())
-            self.engine.graph.add_edge(article_id, source_id, type=RegistryEdgeType.CITES)
+            self.engine.graph.add_node(source_id, **source_node.to_graph_properties(exclude={"id"}))
+            self.engine.graph.add_edge(article_id, source_id, relationship=RegistryEdgeType.CITES)
 
             await self._create_auxiliary_nodes(paper)
 
@@ -243,9 +243,9 @@ class ScholarXKGBridge:
                         importance_score=0.4,
                         timestamp=timestamp,
                     )
-                    self.engine.graph.add_node(author_id, **person_node.model_dump())
+                    self.engine.graph.add_node(author_id, **person_node.to_graph_properties(exclude={"id"}))
 
                 if not self.engine.graph.has_edge(article_id, author_id):
-                    self.engine.graph.add_edge(article_id, author_id, type=RegistryEdgeType.AUTHORED)
+                    self.engine.graph.add_edge(article_id, author_id, relationship=RegistryEdgeType.AUTHORED)
         except Exception as e:
             logger.debug("Operation failed: error_type=%s", type(e).__name__)
