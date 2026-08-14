@@ -7,7 +7,7 @@
         "scholarx-mcp"
       ],
       "env": {
-        "MCP_TOOL_MODE": "condensed",
+        "MCP_TOOL_MODE": "intent",
         "DISCOVERYTOOL": "True",
         "NCBI_API_KEY": "your_ncbi_api_key_here",
         "OSF_TOKEN": "your_osf_token_here",
