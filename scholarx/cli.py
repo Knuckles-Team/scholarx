@@ -659,9 +659,7 @@ def cli():
     )
     scan_parser.add_argument(
         "--output-dir",
-        default=os.environ.get(
-            "SCHOLARX_OUTPUT_DIR", str(Path.cwd() / "scholarx_papers" / "daily_scan")
-        ),
+        default=os.environ.get("SCHOLARX_OUTPUT_DIR", str(Path.cwd() / "scholarx_papers" / "daily_scan")),
         help="Directory to save papers and reports",
     )
     scan_parser.add_argument(
@@ -707,13 +705,9 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
     output_dir = Path(args.output_dir)
 
     # Locate the innovation extractor script
-    packages_root = Path(
-        os.environ.get("AGENT_PACKAGES_ROOT", str(Path(__file__).resolve().parents[3]))
-    ).expanduser()
+    packages_root = Path(os.environ.get("AGENT_PACKAGES_ROOT", str(Path(__file__).resolve().parents[3]))).expanduser()
     configured_extractor = os.environ.get("SCHOLARX_ANALYSIS_SCRIPT")
-    extractor_paths = (
-        [Path(configured_extractor).expanduser()] if configured_extractor else []
-    )
+    extractor_paths = [Path(configured_extractor).expanduser()] if configured_extractor else []
     extractor_paths.append(
         packages_root
         / "skills"
@@ -829,10 +823,7 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
                         except json.JSONDecodeError:
                             pass
                 except Exception as e:
-                    console.print(
-                        "[dim yellow]  ⚠ Paper analysis failed: "
-                        f"{type(e).__name__}[/dim yellow]"
-                    )
+                    console.print(f"[dim yellow]  ⚠ Paper analysis failed: {type(e).__name__}[/dim yellow]")
 
             progress.update(analysis_task, advance=1)
 

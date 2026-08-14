@@ -22,11 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from scholarx.api_client import ScholarXClient
 from scholarx.models import PaperSource, SearchQuery
 
-OUTPUT_DIR = Path(
-    os.environ.get(
-        "SCHOLARX_OUTPUT_DIR", str(Path.cwd() / "scholarx_papers" / "batch_30")
-    )
-).expanduser()
+OUTPUT_DIR = Path(os.environ.get("SCHOLARX_OUTPUT_DIR", str(Path.cwd() / "scholarx_papers" / "batch_30"))).expanduser()
 
 # ── Relevance Concept Taxonomy ──────────────────────────────────────────────
 # Weighted keywords grouped by agent-utilities domains.
@@ -407,8 +403,7 @@ async def main():
                     )
                 else:
                     print(
-                        f"  ❌ [{i}/{len(accepted)}] Failed after "
-                        f"{MAX_RETRIES} attempts: {type(e).__name__}",
+                        f"  ❌ [{i}/{len(accepted)}] Failed after {MAX_RETRIES} attempts: {type(e).__name__}",
                         file=sys.stderr,
                     )
                     failed += 1

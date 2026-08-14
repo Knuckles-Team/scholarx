@@ -394,9 +394,7 @@ def register_storage_tools(mcp):
                     continue
 
                 try:
-                    paper = await asyncio.wait_for(
-                        client.get_paper(paper_source, pid), timeout=remaining
-                    )
+                    paper = await asyncio.wait_for(client.get_paper(paper_source, pid), timeout=remaining)
                 except TimeoutError:
                     results.append(
                         {

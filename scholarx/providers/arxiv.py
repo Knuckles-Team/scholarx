@@ -100,9 +100,7 @@ class ArxivProvider(PaperProvider):
             papers = self._parse_atom_feed(response.text)
             return papers[0] if papers else None
         except Exception as e:
-            logger.error(
-                "arXiv paper retrieval failed: error_type=%s", type(e).__name__
-            )
+            logger.error("arXiv paper retrieval failed: error_type=%s", type(e).__name__)
             return None
 
     async def get_recent(
@@ -203,9 +201,7 @@ class ArxivProvider(PaperProvider):
         try:
             root = ET.fromstring(xml_text)
         except (ET.ParseError, DefusedXmlException) as e:
-            logger.error(
-                "Failed to parse arXiv XML: error_type=%s", type(e).__name__
-            )
+            logger.error("Failed to parse arXiv XML: error_type=%s", type(e).__name__)
             return []
 
         for entry in root.findall("atom:entry", _NS):

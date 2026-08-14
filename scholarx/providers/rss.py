@@ -196,9 +196,7 @@ class RSSFeedProvider:
         try:
             root = ET.fromstring(xml_text)
         except (ET.ParseError, DefusedXmlException) as e:
-            logger.error(
-                "Failed to parse RSS XML: error_type=%s", type(e).__name__
-            )
+            logger.error("Failed to parse RSS XML: error_type=%s", type(e).__name__)
             return result
 
         channel = root.find("channel")

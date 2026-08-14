@@ -55,9 +55,7 @@ class OSFProvider(PaperProvider):
             data = resp.json().get("data", {})
             return self._parse(data) if data else None
         except Exception as e:
-            logger.error(
-                "OSF paper retrieval failed: error_type=%s", type(e).__name__
-            )
+            logger.error("OSF paper retrieval failed: error_type=%s", type(e).__name__)
             return None
 
     async def get_recent(self, categories: list[str] | None = None, days: int = 1) -> list[Paper]:

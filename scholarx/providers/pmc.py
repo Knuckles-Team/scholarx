@@ -48,9 +48,7 @@ class PMCProvider(PaperProvider):
             papers = await self._fetch_details([clean_id])
             return papers[0] if papers else None
         except Exception as e:
-            logger.error(
-                "PMC paper retrieval failed: error_type=%s", type(e).__name__
-            )
+            logger.error("PMC paper retrieval failed: error_type=%s", type(e).__name__)
             return None
 
     async def get_recent(self, categories: list[str] | None = None, days: int = 1) -> list[Paper]:
@@ -187,7 +185,5 @@ class PMCProvider(PaperProvider):
 
             return papers
         except Exception as e:
-            logger.error(
-                "PMC detail retrieval failed: error_type=%s", type(e).__name__
-            )
+            logger.error("PMC detail retrieval failed: error_type=%s", type(e).__name__)
             return []

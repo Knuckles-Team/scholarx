@@ -99,9 +99,7 @@ def ingest_pdf(
             extra=extra,
         )
     except Exception as e:  # noqa: BLE001 — engine/store failure is non-fatal
-        logger.warning(
-            "scholarx KG media store failed: error_type=%s", type(e).__name__
-        )
+        logger.warning("scholarx KG media store failed: error_type=%s", type(e).__name__)
         return None
     if stored is None:
         return None

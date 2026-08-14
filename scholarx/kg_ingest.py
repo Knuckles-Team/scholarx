@@ -31,6 +31,8 @@ logger = logging.getLogger("scholarx.kg")
 
 _SOURCE = "scholarx"
 _DOMAIN = "scholarx"
+
+
 def ingest_entities(
     entities: list[dict[str, Any]],
     relationships: list[dict[str, Any]] | None = None,
@@ -67,9 +69,7 @@ def ingest_documents(
     Each doc: ``{"id":..., "text":..., "title"?:..., "source_uri"?:..., ...props}``.
     The native primitive performs validation, enrichment stamping, and commit.
     """
-    return _native_ingest_documents(
-        docs, source=source, domain=domain, client=client, graph=graph
-    )
+    return _native_ingest_documents(docs, source=source, domain=domain, client=client, graph=graph)
 
 
 # ── Mapper: ScholarX Paper records → typed :Paper / :PaperSource / :Person / :ResearchCategory

@@ -36,6 +36,7 @@ _MAX_PAPER_DOWNLOAD_BATCH = 100
 _MAX_DIRECT_DOWNLOAD_BATCH = 20
 _MAX_DOWNLOAD_BATCH_SECONDS = 300.0
 
+
 def _download_concurrency(value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError("Download concurrency must be an integer")
@@ -47,9 +48,7 @@ def _download_concurrency(value: int) -> int:
 async def _wait_for_download_tasks(tasks: list[asyncio.Task]) -> None:
     """Apply one wall budget and never orphan work when the caller is cancelled."""
     try:
-        _, pending = await asyncio.wait(
-            tasks, timeout=_MAX_DOWNLOAD_BATCH_SECONDS
-        )
+        _, pending = await asyncio.wait(tasks, timeout=_MAX_DOWNLOAD_BATCH_SECONDS)
     except BaseException:
         for task in tasks:
             task.cancel()
@@ -157,9 +156,7 @@ class ScholarXClient:
             try:
                 return await self._providers[source].search(query)
             except Exception as e:
-                logger.error(
-                    "Provider search failed: error_type=%s", type(e).__name__
-                )
+                logger.error("Provider search failed: error_type=%s", type(e).__name__)
                 sources_failed.append(f"{source.value}: {type(e).__name__}")
                 return []
 
@@ -405,10 +402,7 @@ class ScholarXClient:
                 "size_bytes": size_bytes,
             }
 
-        tasks = [
-            asyncio.create_task(_one(pid)) if pid is not None else None
-            for pid in normalized
-        ]
+        tasks = [asyncio.create_task(_one(pid)) if pid is not None else None for pid in normalized]
         valid_tasks = [task for task in tasks if task is not None]
         if valid_tasks:
             await _wait_for_download_tasks(valid_tasks)

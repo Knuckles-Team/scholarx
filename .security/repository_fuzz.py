@@ -17,11 +17,7 @@ MAX_SOURCE_BYTES = 1024 * 1024
 def _corpus(root: Path) -> list[tuple[str, bytes]]:
     values: list[tuple[str, bytes]] = []
     try:
-        candidates = sorted(
-            path
-            for path in root.iterdir()
-            if path.suffix.casefold() in {".json", ".toml"}
-        )[:MAX_FILES]
+        candidates = sorted(path for path in root.iterdir() if path.suffix.casefold() in {".json", ".toml"})[:MAX_FILES]
     except OSError:
         candidates = []
     for path in candidates:
