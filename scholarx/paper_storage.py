@@ -94,9 +94,7 @@ class PaperStorage:
         pdf_path = self.storage_dir / f"{safe_name}.pdf"
 
         try:
-            pdf_path, content_bytes = await self._download_pdf(
-                paper.pdf_url, pdf_path
-            )
+            pdf_path, content_bytes = await self._download_pdf(paper.pdf_url, pdf_path)
             logger.info("Downloaded paper: content_bytes=%d", content_bytes)
 
             # Store metadata alongside PDF
@@ -218,9 +216,7 @@ class PaperStorage:
             raise ValueError("Download destination must not be a symbolic link")
         if destination.exists():
             return destination, destination.stat().st_size, False
-        path, size = await self._download_pdf(
-            f"https://arxiv.org/pdf/{arxiv_id}", destination
-        )
+        path, size = await self._download_pdf(f"https://arxiv.org/pdf/{arxiv_id}", destination)
         return path, size, True
 
     async def _download_pdf(self, url: str, destination: Path) -> tuple[Path, int]:
@@ -228,9 +224,7 @@ class PaperStorage:
         async with asyncio.timeout(_MAX_DOWNLOAD_SECONDS):
             return await self._download_pdf_bounded(url, destination)
 
-    async def _download_pdf_bounded(
-        self, url: str, destination: Path
-    ) -> tuple[Path, int]:
+    async def _download_pdf_bounded(self, url: str, destination: Path) -> tuple[Path, int]:
         """Perform one download under the caller's absolute wall deadline."""
         if destination.is_symlink():
             raise ValueError("Download destination must not be a symbolic link")
@@ -341,12 +335,7 @@ async def _validate_download_url(url: str) -> None:
     except ValueError as exc:
         raise ValueError("Invalid PDF URL") from exc
     hostname = parsed.hostname
-    if (
-        parsed.scheme.lower() != "https"
-        or not hostname
-        or parsed.username is not None
-        or parsed.password is not None
-    ):
+    if parsed.scheme.lower() != "https" or not hostname or parsed.username is not None or parsed.password is not None:
         raise ValueError("PDF URL must be an unauthenticated HTTPS URL")
     lowered = hostname.rstrip(".").lower()
     if lowered == "localhost" or lowered.endswith((".localhost", ".local", ".internal")):
@@ -367,6 +356,6 @@ async def _validate_download_url(url: str) -> None:
     if not addresses:
         raise ValueError("PDF URL host could not be resolved")
     for address in addresses:
-        ip = ipaddress.ip_address(address[4][0].split("%", 1)[0])
+        ip = ipaddress.ip_address(str(address[4][0]).split("%", 1)[0])
         if not ip.is_global:
             raise ValueError("PDF URL resolves to a non-public address")
