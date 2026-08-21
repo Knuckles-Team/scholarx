@@ -1,8 +1,7 @@
 {
   "api_version": "graphos.io/v1",
   "artifacts": {
-    "a2a.json": "6767f8df171c9166a6036a8ce64e622554f45a869cbd5b279c7c731764ba19d6",
-    "connector_manifest.yml": "0bbbf24419748eba9059803e6c06efeb355ab162210bc0d1851a875c11177807",
+    "connector_manifest.yml": "47052d3bc7dde7e2386664d94b60ea7e0e78e751340105faf71a8db631ad9dbc",
     "scholarx/connectors/mcp_source_presets.json": "e2a46d1357825817c792e9329a58b4e4af33c3147ed9c66fec337584b098ff86",
     "scholarx/connectors/tool_schema_fingerprints.json": "83976eb6a8495978c3df1ea72ce7ead7fcd3d567228343301ab55721e10f3fa8",
     "scholarx/ontology/fixtures/records.json": "b0388efa7f3896eb816a9dd6ff681177e35e08f8cef1b36b50574b539e7c7500",
@@ -19,19 +18,19 @@
     "synthetic_fixture_contract": "passed"
   },
   "compatibility": {
-    "agent_utilities": ">=2.1.0,<3",
+    "agent_utilities": ">=2.4.0,<3",
     "bundle_schema": "2",
-    "epistemic_graph": ">=2.23.0,<3"
+    "epistemic_graph": ">=2.26.0,<3"
   },
   "connector": "scholarx",
   "kind": "ConnectorSourceAttestation",
   "live_certified": false,
   "mode": "offline-source",
   "schema_version": "2",
-  "signature": "FEgTKK1FAW01w1ZmjH51Y6P5sFLJSnJFrtC6dC06QR_Q5Jxpp2P-EGjpX-2NDAwophIGH3OBCnoo_zu4UI9DBA",
-  "signature_algorithm": "ed25519",
-  "signer": "ontology-manifest-generator",
-  "signing_public_key": "QkigdPNpcUU7x7NcSkwCsUXIQpaFncMQbYSoiSgI2SY",
+  "signature": null,
+  "signature_algorithm": "none",
+  "signer": "UNSIGNED-PREVIEW",
+  "signing_public_key": "",
   "status": "source-validated",
-  "validated_at": "2026-07-31T04:00:00Z"
+  "validated_at": "2026-08-21T04:30:39Z"
 }
