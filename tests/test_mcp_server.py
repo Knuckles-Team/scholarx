@@ -411,6 +411,199 @@ async def test_sx_storage_bulk_download(mock_client):
             assert results[2] == {"paper_id": "3333", "status": "failed", "error": "Paper not found"}
 
 
+# ── Storage Tools Tests: characterization of branches the pre-existing suite
+#    above did not exercise (CXA-FL-SCHOLARX-01) ────────────────────────────
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_download_invalid_source(mock_client):
+    with patch("scholarx.mcp_server._get_client", return_value=mock_client):
+        res = await call_sx_storage(action="download", source="not-a-real-source", paper_ids="1234.5678")
+    assert res == {"error": "Invalid paper source"}
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_download_paper_ids_too_long(mock_client):
+    huge = "1," * 3000
+    with patch("scholarx.mcp_server._get_client", return_value=mock_client):
+        res = await call_sx_storage(action="download", source="arxiv", paper_ids=huge)
+    assert res == {"error": "'paper_ids' input limit exceeded"}
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_download_timeout_queues(mock_client):
+    # Budget shrunk so a slow client.download_paper trips the inline wait_for
+    # timeout deterministically and fast, instead of waiting out the real
+    # 60s _INLINE_DOWNLOAD_BUDGET_S.
+    mock_client.storage.list_stored_papers = MagicMock(return_value=[])
+    mock_paper = Paper(id="arxiv:1234.5678", title="A", authors=["B"], source=PaperSource.ARXIV)
+    mock_client.get_paper = AsyncMock(return_value=mock_paper)
+
+    async def _slow_download(paper):
+        import asyncio as _asyncio
+
+        await _asyncio.sleep(0.2)
+        return "/tmp/never.pdf"
+
+    mock_client.download_paper = _slow_download
+    mock_client.queue_download = MagicMock(return_value="job-bg-1")
+
+    with (
+        patch("scholarx.mcp_server._get_client", return_value=mock_client),
+        patch("scholarx.mcp_server._INLINE_DOWNLOAD_BUDGET_S", 0.01),
+    ):
+        res = await call_sx_storage(action="download", source="arxiv", paper_ids="1234.5678")
+
+    assert res["status"] == "queued"
+    assert res["job_id"] == "job-bg-1"
+    assert res["paper_id"] == "arxiv:1234.5678"
+    mock_client.queue_download.assert_called_once_with(mock_paper)
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_download_url_too_long(mock_client):
+    huge = "a," * 3000
+    with patch("scholarx.mcp_server._get_client", return_value=mock_client):
+        res = await call_sx_storage(action="download_url", paper_ids=huge)
+    assert res == {"error": "'paper_ids' input limit exceeded"}
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_download_url_too_many_ids(mock_client):
+    ids = ",".join(f"{i:04d}.{i:04d}" for i in range(21))
+    with patch("scholarx.mcp_server._get_client", return_value=mock_client):
+        res = await call_sx_storage(action="download_url", paper_ids=ids)
+    assert res == {"error": "direct download count limit exceeded"}
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_download_url_deadline_exceeded_precheck(mock_client):
+    # Deadline set in the past (negative budget) so the very first id hits the
+    # manual "remaining <= 0" pre-check raise, not the wait_for() timeout path.
+    mock_client.storage.download_arxiv_id = AsyncMock()
+    with (
+        patch("scholarx.mcp_server._get_client", return_value=mock_client),
+        patch("scholarx.mcp_server._MAX_DIRECT_DOWNLOAD_SECONDS", -1.0),
+    ):
+        res = await call_sx_storage(
+            action="download_url", paper_ids="2603.09022,2603.09023"
+        )
+    results = res["results"]
+    assert len(results) == 1
+    assert results[0] == {
+        "paper_id": "2603.09022",
+        "status": "failed",
+        "error": "direct download time limit exceeded",
+    }
+    mock_client.storage.download_arxiv_id.assert_not_awaited()
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_download_url_wait_for_timeout(mock_client):
+    # Positive-but-tiny budget so the pre-check passes but the per-id
+    # asyncio.wait_for() around download_arxiv_id itself times out.
+    async def _slow_download_arxiv_id(pid):
+        import asyncio as _asyncio
+
+        await _asyncio.sleep(0.3)
+        return ("/tmp/x.pdf", 1, True)
+
+    mock_client.storage.download_arxiv_id = _slow_download_arxiv_id
+    with (
+        patch("scholarx.mcp_server._get_client", return_value=mock_client),
+        patch("scholarx.mcp_server._MAX_DIRECT_DOWNLOAD_SECONDS", 0.02),
+    ):
+        res = await call_sx_storage(action="download_url", paper_ids="2603.09022")
+    results = res["results"]
+    assert results == [
+        {
+            "paper_id": "2603.09022",
+            "status": "failed",
+            "error": "direct download time limit exceeded",
+        }
+    ]
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_bulk_download_invalid_source(mock_client):
+    mock_client.storage.list_stored_papers = MagicMock(return_value=[])
+    with patch("scholarx.mcp_server._get_client", return_value=mock_client):
+        res = await call_sx_storage(action="bulk_download", source="not-a-real-source", paper_ids="1111")
+    assert res == {"error": "Invalid paper source"}
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_bulk_download_paper_ids_too_long(mock_client):
+    huge = "1," * 3000
+    with patch("scholarx.mcp_server._get_client", return_value=mock_client):
+        res = await call_sx_storage(action="bulk_download", source="arxiv", paper_ids=huge)
+    assert res == {"error": "'paper_ids' input limit exceeded"}
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_bulk_download_too_many_ids(mock_client):
+    ids = ",".join(str(i) for i in range(101))
+    with patch("scholarx.mcp_server._get_client", return_value=mock_client):
+        res = await call_sx_storage(action="bulk_download", source="arxiv", paper_ids=ids)
+    assert res == {"error": "bulk download count limit exceeded"}
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_bulk_download_deadline_exceeded_precheck(mock_client):
+    mock_client.storage.list_stored_papers = MagicMock(return_value=[])
+    mock_client.get_paper = AsyncMock()
+    with (
+        patch("scholarx.mcp_server._get_client", return_value=mock_client),
+        patch("scholarx.mcp_server._MAX_BULK_DOWNLOAD_SECONDS", -1.0),
+    ):
+        res = await call_sx_storage(action="bulk_download", source="arxiv", paper_ids="1111,2222")
+    results = res["results"]
+    assert len(results) == 1
+    assert results[0] == {
+        "paper_id": "1111",
+        "status": "failed",
+        "error": "bulk download time limit exceeded",
+    }
+    mock_client.get_paper.assert_not_awaited()
+
+
+@pytest.mark.concept("SX-1.0")
+@pytest.mark.asyncio
+async def test_sx_storage_bulk_download_wait_for_timeout(mock_client):
+    mock_client.storage.list_stored_papers = MagicMock(return_value=[])
+
+    async def _slow_get_paper(source, pid):
+        import asyncio as _asyncio
+
+        await _asyncio.sleep(0.3)
+        return None
+
+    mock_client.get_paper = _slow_get_paper
+    with (
+        patch("scholarx.mcp_server._get_client", return_value=mock_client),
+        patch("scholarx.mcp_server._MAX_BULK_DOWNLOAD_SECONDS", 0.02),
+    ):
+        res = await call_sx_storage(action="bulk_download", source="arxiv", paper_ids="1111")
+    assert res["results"] == [
+        {
+            "paper_id": "1111",
+            "status": "failed",
+            "error": "bulk download time limit exceeded",
+        }
+    ]
+
+
 # ── Prompts Tests ───────────────────────────────────────────────────────────
 
 
