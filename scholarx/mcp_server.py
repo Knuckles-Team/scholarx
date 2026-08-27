@@ -204,6 +204,202 @@ def register_discovery_tools(mcp):
         return {"sources": [s.model_dump() for s in statuses]}
 
 
+def _find_locally_stored_paper(stored, source, pid):
+    """Return the first stored-paper record matching ``source``/``pid`` whose
+    local file still exists on disk, else ``None``.
+
+    Shared by the ``download`` and ``bulk_download`` handlers, which previously
+    each carried an identical copy of this scan-and-check loop.
+    """
+    for p in stored:
+        if p.get("source") == source and (pid == p.get("id") or pid in p.get("id", "")):
+            local_path = p.get("local_path")
+            if local_path and __import__("pathlib").Path(local_path).exists():
+                return p
+    return None
+
+
+async def _download_single_paper(client, paper, ctx):
+    """Fetch one already-resolved ``paper`` inline within the inline budget.
+
+    On timeout, hand the job to the background download queue instead of
+    blocking the (serialized) MCP server slot further.
+    """
+    if ctx:
+        await ctx.report_progress(10, 100)
+    # Bound the inline fetch so a slow/large source can never exceed the MCP
+    # call timeout and wedge the (serialized) server — on timeout, hand the
+    # job to the background download queue and return its id to poll via
+    # action='status'. Fast downloads still return the local path inline.
+    try:
+        path = await asyncio.wait_for(client.download_paper(paper), timeout=_INLINE_DOWNLOAD_BUDGET_S)
+    except TimeoutError:
+        jid = await run_blocking(client.queue_download, paper)
+        return {
+            "status": "queued",
+            "job_id": jid,
+            "paper_id": paper.id,
+            "note": (
+                "download exceeded the inline budget; running in background — poll with action='status', job_id=<id>"
+            ),
+        }
+    if ctx:
+        await ctx.report_progress(100, 100)
+    return {
+        "status": "downloaded" if path else "failed",
+        "local_path": str(path) if path else None,
+        "paper_id": paper.id,
+    }
+
+
+async def _sx_storage_stored(client) -> dict:
+    papers = await run_blocking(client.storage.list_stored_papers)
+    stats = await run_blocking(client.storage.get_storage_stats)
+    return {"papers": papers, "stats": stats}
+
+
+async def _sx_storage_status(client, job_id) -> dict:
+    if not job_id:
+        return {"error": "'job_id' required for 'status' action"}
+    status = await run_blocking(client.get_download_status, job_id)
+    return status if status else {"error": f"Job {job_id} not found."}
+
+
+async def _sx_storage_queue(client) -> dict:
+    return {"downloads": await run_blocking(client.get_queue_status)}
+
+
+async def _sx_storage_download(client, source, paper_ids, ctx, PaperSource) -> dict:
+    if not source or not paper_ids:
+        return {"error": "'source' and 'paper_ids' required for 'download' action"}
+    if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
+        return {"error": "'paper_ids' input limit exceeded"}
+    pid = paper_ids.split(",")[0].strip()
+    try:
+        paper_source = PaperSource(source)
+    except ValueError:
+        return {"error": "Invalid paper source"}
+
+    # Check local storage first
+    stored = await run_blocking(client.storage.list_stored_papers)
+    match = _find_locally_stored_paper(stored, source, pid)
+    if match:
+        return {"status": "already_exists", "local_path": match.get("local_path"), "paper_id": match.get("id")}
+
+    paper = await client.get_paper(paper_source, pid)
+    if not paper:
+        return {"error": "Paper not found"}
+    return await _download_single_paper(client, paper, ctx)
+
+
+async def _download_one_arxiv_url(client, raw_id, deadline):
+    """Process one ``download_url`` id. Returns ``(result, should_stop)``;
+    ``should_stop`` mirrors the original loop's ``break`` on time-limit."""
+    from scholarx.paper_storage import normalize_arxiv_id
+
+    try:
+        pid = normalize_arxiv_id(raw_id)
+    except ValueError:
+        return {"paper_id": "invalid", "status": "rejected", "error": "Invalid arXiv identifier"}, False
+    try:
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            raise TimeoutError
+        path, size_bytes, created = await asyncio.wait_for(
+            client.storage.download_arxiv_id(pid),
+            timeout=remaining,
+        )
+        return {
+            "paper_id": pid,
+            "status": "downloaded" if created else "already_exists",
+            "local_path": str(path),
+            "size_bytes": size_bytes,
+        }, False
+    except TimeoutError:
+        return {"paper_id": pid, "status": "failed", "error": "direct download time limit exceeded"}, True
+    except Exception:
+        return {"paper_id": pid, "status": "failed", "error": "Operation failed"}, False
+
+
+async def _sx_storage_download_url(client, paper_ids) -> dict:
+    if not paper_ids:
+        return {"error": "'paper_ids' required for 'download_url' action"}
+    if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
+        return {"error": "'paper_ids' input limit exceeded"}
+
+    raw_ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
+    if len(raw_ids) > _MAX_DIRECT_DOWNLOAD_IDS:
+        return {"error": "direct download count limit exceeded"}
+
+    results = []
+    deadline = asyncio.get_running_loop().time() + _MAX_DIRECT_DOWNLOAD_SECONDS
+    for raw_id in raw_ids:
+        result, should_stop = await _download_one_arxiv_url(client, raw_id, deadline)
+        results.append(result)
+        if should_stop:
+            break
+    return {"results": results}
+
+
+async def _bulk_download_one(client, paper_source, source, stored, pid, remaining):
+    """Process one ``bulk_download`` id (deadline already checked by the
+    caller). Returns ``(result, should_stop)``."""
+    match = _find_locally_stored_paper(stored, source, pid)
+    if match:
+        return {"paper_id": pid, "status": "already_exists", "local_path": match.get("local_path")}, False
+
+    try:
+        paper = await asyncio.wait_for(client.get_paper(paper_source, pid), timeout=remaining)
+    except TimeoutError:
+        return {"paper_id": pid, "status": "failed", "error": "bulk download time limit exceeded"}, True
+    if not paper:
+        return {"paper_id": pid, "status": "failed", "error": "Paper not found"}, False
+    jid = await run_blocking(client.queue_download, paper)
+    return {"paper_id": pid, "status": "queued", "job_id": jid}, False
+
+
+def _validate_bulk_download_request(source, paper_ids, PaperSource):
+    """Validate + parse ``bulk_download`` inputs, in the original check order.
+
+    Returns ``(error, paper_source, ids)``: ``error`` is the response dict to
+    return immediately on failure (``None`` on success), in which case
+    ``paper_source``/``ids`` carry the parsed values.
+    """
+    if not source or not paper_ids:
+        return {"error": "'source' and 'paper_ids' required for 'bulk_download' action"}, None, None
+    if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
+        return {"error": "'paper_ids' input limit exceeded"}, None, None
+    ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
+    if len(ids) > _MAX_BULK_DOWNLOAD_IDS:
+        return {"error": "bulk download count limit exceeded"}, None, None
+    try:
+        paper_source = PaperSource(source)
+    except ValueError:
+        return {"error": "Invalid paper source"}, None, None
+    return None, paper_source, ids
+
+
+async def _sx_storage_bulk_download(client, source, paper_ids, PaperSource) -> dict:
+    error, paper_source, ids = _validate_bulk_download_request(source, paper_ids, PaperSource)
+    if error:
+        return error
+
+    results = []
+    stored = await run_blocking(client.storage.list_stored_papers)
+    deadline = asyncio.get_running_loop().time() + _MAX_BULK_DOWNLOAD_SECONDS
+    for pid in ids:
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            results.append({"paper_id": pid, "status": "failed", "error": "bulk download time limit exceeded"})
+            break
+        # Check local storage first
+        result, should_stop = await _bulk_download_one(client, paper_source, source, stored, pid, remaining)
+        results.append(result)
+        if should_stop:
+            break
+    return {"results": results}
+
+
 def register_storage_tools(mcp):
     """Register paper storage tools."""
 
@@ -231,185 +427,22 @@ def register_storage_tools(mcp):
 
         client = _get_client()
         if action == "stored":
-            papers = await run_blocking(client.storage.list_stored_papers)
-            stats = await run_blocking(client.storage.get_storage_stats)
-            return {"papers": papers, "stats": stats}
+            return await _sx_storage_stored(client)
 
         if action == "status":
-            if not job_id:
-                return {"error": "'job_id' required for 'status' action"}
-            status = await run_blocking(client.get_download_status, job_id)
-            return status if status else {"error": f"Job {job_id} not found."}
+            return await _sx_storage_status(client, job_id)
 
         if action == "queue":
-            return {"downloads": await run_blocking(client.get_queue_status)}
+            return await _sx_storage_queue(client)
 
         if action == "download":
-            if not source or not paper_ids:
-                return {"error": "'source' and 'paper_ids' required for 'download' action"}
-            if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
-                return {"error": "'paper_ids' input limit exceeded"}
-            pid = paper_ids.split(",")[0].strip()
-            try:
-                paper_source = PaperSource(source)
-            except ValueError:
-                return {"error": "Invalid paper source"}
-
-            # Check local storage first
-            stored = await run_blocking(client.storage.list_stored_papers)
-            for p in stored:
-                if p.get("source") == source and (pid == p.get("id") or pid in p.get("id", "")):
-                    local_path = p.get("local_path")
-                    if local_path and __import__("pathlib").Path(local_path).exists():
-                        return {"status": "already_exists", "local_path": local_path, "paper_id": p.get("id")}
-
-            paper = await client.get_paper(paper_source, pid)
-            if not paper:
-                return {"error": "Paper not found"}
-            if ctx:
-                await ctx.report_progress(10, 100)
-            # Bound the inline fetch so a slow/large source can never exceed the MCP
-            # call timeout and wedge the (serialized) server — on timeout, hand the
-            # job to the background download queue and return its id to poll via
-            # action='status'. Fast downloads still return the local path inline.
-            try:
-                path = await asyncio.wait_for(client.download_paper(paper), timeout=_INLINE_DOWNLOAD_BUDGET_S)
-            except TimeoutError:
-                jid = await run_blocking(client.queue_download, paper)
-                return {
-                    "status": "queued",
-                    "job_id": jid,
-                    "paper_id": paper.id,
-                    "note": (
-                        "download exceeded the inline budget; running in background "
-                        "— poll with action='status', job_id=<id>"
-                    ),
-                }
-            if ctx:
-                await ctx.report_progress(100, 100)
-            return {
-                "status": "downloaded" if path else "failed",
-                "local_path": str(path) if path else None,
-                "paper_id": paper.id,
-            }
+            return await _sx_storage_download(client, source, paper_ids, ctx, PaperSource)
 
         if action == "download_url":
-            if not paper_ids:
-                return {"error": "'paper_ids' required for 'download_url' action"}
-            if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
-                return {"error": "'paper_ids' input limit exceeded"}
-            from typing import Any
-
-            from scholarx.paper_storage import normalize_arxiv_id
-
-            raw_ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
-            if len(raw_ids) > _MAX_DIRECT_DOWNLOAD_IDS:
-                return {"error": "direct download count limit exceeded"}
-
-            results: list[dict[str, Any]] = []
-            deadline = asyncio.get_running_loop().time() + _MAX_DIRECT_DOWNLOAD_SECONDS
-            for raw_id in raw_ids:
-                try:
-                    pid = normalize_arxiv_id(raw_id)
-                except ValueError:
-                    results.append(
-                        {
-                            "paper_id": "invalid",
-                            "status": "rejected",
-                            "error": "Invalid arXiv identifier",
-                        }
-                    )
-                    continue
-                try:
-                    remaining = deadline - asyncio.get_running_loop().time()
-                    if remaining <= 0:
-                        raise TimeoutError
-                    path, size_bytes, created = await asyncio.wait_for(
-                        client.storage.download_arxiv_id(pid),
-                        timeout=remaining,
-                    )
-                    results.append(
-                        {
-                            "paper_id": pid,
-                            "status": "downloaded" if created else "already_exists",
-                            "local_path": str(path),
-                            "size_bytes": size_bytes,
-                        }
-                    )
-                except TimeoutError:
-                    results.append(
-                        {
-                            "paper_id": pid,
-                            "status": "failed",
-                            "error": "direct download time limit exceeded",
-                        }
-                    )
-                    break
-                except Exception:
-                    results.append(
-                        {
-                            "paper_id": pid,
-                            "status": "failed",
-                            "error": "Operation failed",
-                        }
-                    )
-            return {"results": results}
+            return await _sx_storage_download_url(client, paper_ids)
 
         if action == "bulk_download":
-            if not source or not paper_ids:
-                return {"error": "'source' and 'paper_ids' required for 'bulk_download' action"}
-            if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
-                return {"error": "'paper_ids' input limit exceeded"}
-            ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
-            if len(ids) > _MAX_BULK_DOWNLOAD_IDS:
-                return {"error": "bulk download count limit exceeded"}
-            try:
-                paper_source = PaperSource(source)
-            except ValueError:
-                return {"error": "Invalid paper source"}
-            results = []
-            stored = await run_blocking(client.storage.list_stored_papers)
-            deadline = asyncio.get_running_loop().time() + _MAX_BULK_DOWNLOAD_SECONDS
-            for pid in ids:
-                remaining = deadline - asyncio.get_running_loop().time()
-                if remaining <= 0:
-                    results.append(
-                        {
-                            "paper_id": pid,
-                            "status": "failed",
-                            "error": "bulk download time limit exceeded",
-                        }
-                    )
-                    break
-                # Check local storage first
-                already_exists = False
-                for p in stored:
-                    if p.get("source") == source and (pid == p.get("id") or pid in p.get("id", "")):
-                        local_path = p.get("local_path")
-                        if local_path and __import__("pathlib").Path(local_path).exists():
-                            results.append({"paper_id": pid, "status": "already_exists", "local_path": local_path})
-                            already_exists = True
-                            break
-                if already_exists:
-                    continue
-
-                try:
-                    paper = await asyncio.wait_for(client.get_paper(paper_source, pid), timeout=remaining)
-                except TimeoutError:
-                    results.append(
-                        {
-                            "paper_id": pid,
-                            "status": "failed",
-                            "error": "bulk download time limit exceeded",
-                        }
-                    )
-                    break
-                if not paper:
-                    results.append({"paper_id": pid, "status": "failed", "error": "Paper not found"})
-                    continue
-                jid = await run_blocking(client.queue_download, paper)
-                results.append({"paper_id": pid, "status": "queued", "job_id": jid})
-            return {"results": results}
+            return await _sx_storage_bulk_download(client, source, paper_ids, PaperSource)
 
         # resolve_action guarantees a valid canonical action above.
         return {"error": f"Unknown action: {action}"}  # pragma: no cover
