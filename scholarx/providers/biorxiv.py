@@ -16,6 +16,16 @@ from .base import PaperProvider
 logger = logging.getLogger(__name__)
 
 
+def _filter_papers_by_query(papers: list[Paper], query_text: str) -> list[Paper]:
+    query_lower = query_text.lower()
+    return [p for p in papers if query_lower in p.title.lower() or query_lower in p.abstract.lower()]
+
+
+def _filter_papers_by_categories(papers: list[Paper], categories: list[str]) -> list[Paper]:
+    cat_lower = [c.lower() for c in categories]
+    return [p for p in papers if any(c.lower() in cat_lower for c in p.categories)]
+
+
 class BiorxivProvider(PaperProvider):
     """bioRxiv / medRxiv provider using the bioRxiv API."""
 
@@ -43,17 +53,11 @@ class BiorxivProvider(PaperProvider):
         try:
             response = await self._get(f"/details/{self._server}/{date_from}/{date_to}/0/50")
             data = response.json()
-            collection = data.get("collection", [])
-
-            parsed_papers = [self._parse_paper(item) for item in collection]
-            valid_papers: list[Paper] = [p for p in parsed_papers if p is not None]
+            valid_papers = self._parse_valid_papers(data)
 
             # Client-side filtering by query terms
             if query.query:
-                query_lower = query.query.lower()
-                valid_papers = [
-                    p for p in valid_papers if query_lower in p.title.lower() or query_lower in p.abstract.lower()
-                ]
+                valid_papers = _filter_papers_by_query(valid_papers, query.query)
 
             return valid_papers[: query.max_results]
         except Exception as e:
@@ -83,15 +87,11 @@ class BiorxivProvider(PaperProvider):
         try:
             response = await self._get(f"/details/{self._server}/{date_from}/{date_to}/0/50")
             data = response.json()
-            collection = data.get("collection", [])
-
-            parsed_papers = [self._parse_paper(item) for item in collection]
-            valid_papers: list[Paper] = [p for p in parsed_papers if p is not None]
+            valid_papers = self._parse_valid_papers(data)
 
             # Filter by category if specified
             if categories:
-                cat_lower = [c.lower() for c in categories]
-                valid_papers = [p for p in valid_papers if any(c.lower() in cat_lower for c in p.categories)]
+                valid_papers = _filter_papers_by_categories(valid_papers, categories)
 
             return valid_papers
         except Exception as e:
@@ -99,6 +99,12 @@ class BiorxivProvider(PaperProvider):
             return []
 
     # ── Private Helpers ──────────────────────────────────────────────────
+
+    def _parse_valid_papers(self, data: dict) -> list[Paper]:
+        """Parse every collection item, dropping any that fail to parse."""
+        collection = data.get("collection", [])
+        parsed_papers = [self._parse_paper(item) for item in collection]
+        return [p for p in parsed_papers if p is not None]
 
     def _parse_paper(self, item: dict) -> Paper | None:
         """Parse a bioRxiv API response item into a Paper."""
