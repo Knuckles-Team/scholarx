@@ -19,6 +19,7 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -320,17 +321,8 @@ def generate_synergy_report(
 # ── Main Pipeline ───────────────────────────────────────────────────────────
 
 
-async def run_scan(args: argparse.Namespace) -> dict:
-    """Execute the full research scanning pipeline with rich progress bars."""
-    from scholarx.api_client import ScholarXClient
-    from scholarx.models import PaperSource, SearchQuery
-
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    pdf_dir = output_dir / "pdfs"
-    pdf_dir.mkdir(exist_ok=True)
-
-    # Load custom taxonomy if provided
+def _load_scan_taxonomy(args: argparse.Namespace) -> dict[str, Any]:
+    """Load a custom relevance taxonomy if `--taxonomy` was given, else the default."""
     taxonomy = DEFAULT_TAXONOMY
     if args.taxonomy:
         tax_path = Path(args.taxonomy)
@@ -338,9 +330,10 @@ async def run_scan(args: argparse.Namespace) -> dict:
             tax_data = json.loads(tax_path.read_text())
             taxonomy = tax_data.get("domains", tax_data)
             console.print(f"[dim]📋 Loaded custom taxonomy: {len(taxonomy)} domains[/dim]")
+    return taxonomy
 
-    categories = [c.strip() for c in args.categories.split(",")]
 
+def _print_scan_header(args: argparse.Namespace, categories: list[str], output_dir: Path) -> None:
     console.print(
         Panel.fit(
             f"[bold cyan]ScholarX Research Scanner v{__version__}[/bold cyan]\n"
@@ -353,11 +346,10 @@ async def run_scan(args: argparse.Namespace) -> dict:
         )
     )
 
-    # ── Phase 1: Fetch papers ────────────────────────────────────────────
-    client = ScholarXClient(
-        sources=[PaperSource.ARXIV],
-        storage_dir=str(pdf_dir),
-    )
+
+async def _fetch_scan_papers(client: Any, args: argparse.Namespace, categories: list[str]) -> Any:
+    """Phase 1: fetch papers from arXiv for the scan query, with a progress bar."""
+    from scholarx.models import PaperSource, SearchQuery
 
     with Progress(
         SpinnerColumn(),
@@ -383,12 +375,11 @@ async def run_scan(args: argparse.Namespace) -> dict:
         f"  📊 Fetched [bold]{result.total_count}[/bold] papers "
         f"([dim]{result.deduplicated_count} duplicates removed[/dim])"
     )
+    return result
 
-    if not result.papers:
-        console.print("[red]❌ No papers found. Exiting.[/red]")
-        return {"status": "no_papers", "count": 0}
 
-    # ── Phase 2: Score relevance ─────────────────────────────────────────
+def _score_scan_papers(papers: list[Any], taxonomy: dict[str, Any]) -> list[dict[str, Any]]:
+    """Phase 2: score every fetched paper against the taxonomy, with a progress bar."""
     scored: list[dict[str, Any]] = []
     with Progress(
         SpinnerColumn(),
@@ -400,22 +391,29 @@ async def run_scan(args: argparse.Namespace) -> dict:
     ) as progress:
         score_task = progress.add_task(
             f"[yellow]Scoring relevance ({len(taxonomy)} domains)...",
-            total=len(result.papers),
+            total=len(papers),
         )
-        for paper in result.papers:
+        for paper in papers:
             score = score_paper(paper.title, paper.abstract, taxonomy)
             scored.append({"paper": paper, "score": score})
             progress.update(score_task, advance=1)
 
     scored.sort(key=lambda x: x["score"]["total_score"], reverse=True)
+    return scored
 
-    # ── Phase 3: Filter & Display ────────────────────────────────────────
+
+def _partition_scored_papers(
+    scored: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split scored papers by verdict; `accepted` is relevant + marginal."""
     relevant = [s for s in scored if s["score"]["verdict"] == "relevant"]
     marginal = [s for s in scored if s["score"]["verdict"] == "marginal"]
     irrelevant = [s for s in scored if s["score"]["verdict"] == "irrelevant"]
     accepted = relevant + marginal
+    return relevant, marginal, irrelevant, accepted
 
-    # Results table
+
+def _render_scoring_table(scored: list[dict[str, Any]]) -> Table:
     table = Table(title="📊 Relevance Scoring Results", show_lines=False, expand=True)
     table.add_column("#", style="dim", width=3)
     table.add_column("Score", style="bold", width=6, justify="right")
@@ -423,26 +421,31 @@ async def run_scan(args: argparse.Namespace) -> dict:
     table.add_column("Domains", style="cyan", width=30)
     table.add_column("Title", style="white", no_wrap=False)
 
+    verdict_styles = {
+        "relevant": "[bold green]✅ relevant[/bold green]",
+        "marginal": "[yellow]🟡 marginal[/yellow]",
+        "irrelevant": "[dim red]❌ irrelevant[/dim red]",
+    }
     for i, sp in enumerate(scored, 1):
         s = sp["score"]
         p = sp["paper"]
-        verdict_style = {
-            "relevant": "[bold green]✅ relevant[/bold green]",
-            "marginal": "[yellow]🟡 marginal[/yellow]",
-            "irrelevant": "[dim red]❌ irrelevant[/dim red]",
-        }[s["verdict"]]
         domains = ", ".join(s["domain_hits"].keys()) if s["domain_hits"] else "—"
         table.add_row(
             str(i),
             f"{s['total_score']:.1f}",
-            verdict_style,
+            verdict_styles[s["verdict"]],
             domains,
             p.title[:80],
         )
+    return table
 
-    console.print(table)
 
-    # Summary panel
+def _print_filter_summary(
+    relevant: list[dict[str, Any]],
+    marginal: list[dict[str, Any]],
+    irrelevant: list[dict[str, Any]],
+    accepted: list[dict[str, Any]],
+) -> None:
     console.print(
         Panel.fit(
             f"[bold green]✅ Relevant:[/bold green]   {len(relevant)} papers (score ≥ 3.0)\n"
@@ -454,10 +457,15 @@ async def run_scan(args: argparse.Namespace) -> dict:
         )
     )
 
-    # ── Save outputs ─────────────────────────────────────────────────────
 
-    # Scoring summary JSON
-    scoring_summary = {
+def _build_scoring_summary(
+    args: argparse.Namespace,
+    categories: list[str],
+    scored: list[dict[str, Any]],
+    accepted: list[dict[str, Any]],
+    irrelevant: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
         "scan_date": datetime.now(UTC).isoformat(),
         "query": args.query,
         "categories": categories,
@@ -478,39 +486,138 @@ async def run_scan(args: argparse.Namespace) -> dict:
             for sp in scored
         ],
     }
+
+
+def _render_paper_markdown(sp: dict[str, Any]) -> str:
+    """Render a single accepted paper's markdown summary."""
+    paper = sp["paper"]
+    score_data = sp["score"]
+    content = f"# {paper.title}\n\n"
+    content += f"**Relevance Score:** {score_data['total_score']} ({score_data['verdict']})\n"
+    content += f"**Domains Matched:** {', '.join(score_data['domain_hits'].keys()) if score_data['domain_hits'] else 'none'}\n"
+    content += f"**Source:** {paper.source.value}\n"
+    content += f"**ID:** {paper.id}\n"
+    content += f"**Published:** {paper.published_date}\n"
+    content += f"**URL:** {paper.url}\n"
+    content += f"**DOI:** {paper.doi or 'N/A'}\n"
+    content += f"**Categories:** {', '.join(paper.categories)}\n\n"
+    content += "## Authors\n"
+    content += "\n".join(f"- {a}" for a in paper.authors) + "\n\n"
+    content += f"## Abstract\n{paper.abstract}\n\n"
+    content += "## Relevance Analysis\n"
+    content += json.dumps(score_data["domain_hits"], indent=2) + "\n"
+    return content
+
+
+def _write_accepted_paper_markdowns(output_dir: Path, accepted: list[dict[str, Any]]) -> None:
+    for i, sp in enumerate(accepted, 1):
+        (output_dir / f"paper_{i:02d}.md").write_text(_render_paper_markdown(sp))
+
+
+def _write_scan_outputs(
+    output_dir: Path,
+    args: argparse.Namespace,
+    categories: list[str],
+    scored: list[dict[str, Any]],
+    accepted: list[dict[str, Any]],
+    irrelevant: list[dict[str, Any]],
+) -> None:
+    """Write relevance_scores.json, per-paper markdowns, and papers_metadata.json."""
+    scoring_summary = _build_scoring_summary(args, categories, scored, accepted, irrelevant)
     (output_dir / "relevance_scores.json").write_text(json.dumps(scoring_summary, indent=2, default=str))
 
-    # Paper markdowns for accepted papers
-    for i, sp in enumerate(accepted, 1):
-        paper = sp["paper"]
-        score_data = sp["score"]
-        content = f"# {paper.title}\n\n"
-        content += f"**Relevance Score:** {score_data['total_score']} ({score_data['verdict']})\n"
-        content += f"**Domains Matched:** {', '.join(score_data['domain_hits'].keys()) if score_data['domain_hits'] else 'none'}\n"
-        content += f"**Source:** {paper.source.value}\n"
-        content += f"**ID:** {paper.id}\n"
-        content += f"**Published:** {paper.published_date}\n"
-        content += f"**URL:** {paper.url}\n"
-        content += f"**DOI:** {paper.doi or 'N/A'}\n"
-        content += f"**Categories:** {', '.join(paper.categories)}\n\n"
-        content += "## Authors\n"
-        content += "\n".join(f"- {a}" for a in paper.authors) + "\n\n"
-        content += f"## Abstract\n{paper.abstract}\n\n"
-        content += "## Relevance Analysis\n"
-        content += json.dumps(score_data["domain_hits"], indent=2) + "\n"
-        (output_dir / f"paper_{i:02d}.md").write_text(content)
+    _write_accepted_paper_markdowns(output_dir, accepted)
 
-    # Metadata
     accepted_meta = [sp["paper"].model_dump(exclude={"normalized_title", "normalized_authors"}) for sp in accepted]
     (output_dir / "papers_metadata.json").write_text(json.dumps(accepted_meta, indent=2, default=str))
 
-    # ── Phase 4: Download PDFs with progress bar ─────────────────────────
+
+@dataclass
+class _DownloadStats:
+    """Outcome tally for a scan's PDF-download phase."""
+
+    downloaded: int = 0
+    skipped: int = 0
+    failed_papers: list[str] = field(default_factory=list)
+
+
+@dataclass
+class _PdfDownloadRun:
+    """Config + the shared rich Progress handle for one scan's PDF downloads."""
+
+    client: Any
+    progress: Progress
+    task_id: Any
+    max_retries: int = 3
+    retry_backoff: tuple[int, ...] = (5, 10, 20)
+    download_delay: float = 3.5
+
+
+async def _download_one_paper(run: _PdfDownloadRun, paper: Any, index: int) -> str:
+    """Download one paper's PDF with rate limiting + bounded retries, updating the
+    progress bar as it goes. Returns "skipped", "downloaded", "no_url", or "failed"."""
+    existing = run.client.storage.get_local_path(paper.id)
+    if existing and existing.exists():
+        run.progress.update(
+            run.task_id,
+            advance=1,
+            description=f"[dim]⏭️  Already stored: {paper.title[:40]}...[/dim]",
+        )
+        return "skipped"
+
+    if index > 1:
+        run.progress.update(
+            run.task_id,
+            description=f"[dim]⏳ Rate limiting ({run.download_delay}s)...[/dim]",
+        )
+        await asyncio.sleep(run.download_delay)
+
+    success = False
+    for attempt in range(run.max_retries):
+        try:
+            if attempt > 0:
+                await asyncio.sleep(run.retry_backoff[attempt])
+
+            path = await run.client.download_paper(paper)
+            if path:
+                run.progress.update(
+                    run.task_id,
+                    advance=1,
+                    description=f"[green]✅ {paper.title[:45]}...[/green]",
+                )
+                return "downloaded"
+            run.progress.update(
+                run.task_id,
+                advance=1,
+                description=f"[yellow]⚠️  No PDF URL: {paper.title[:40]}...[/yellow]",
+            )
+            return "no_url"
+        except Exception:
+            if attempt < run.max_retries - 1:
+                run.progress.update(
+                    run.task_id,
+                    description=f"[yellow]🔄 Retry {attempt + 1}: {paper.title[:35]}...[/yellow]",
+                )
+            else:
+                run.progress.update(
+                    run.task_id,
+                    advance=1,
+                    description=f"[red]❌ Failed: {paper.title[:40]}...[/red]",
+                )
+                return "failed"
+
+    if not success:
+        run.progress.update(run.task_id, advance=1)
+    return "unresolved"
+
+
+async def _download_accepted_papers(client: Any, accepted: list[dict[str, Any]]) -> _DownloadStats:
+    """Phase 4: download PDFs for every accepted paper, with rate limiting,
+    dedup skipping, and bounded per-paper retries."""
+    stats = _DownloadStats()
     download_delay = 3.5  # arXiv rate limit
     max_retries = 3
-    retry_backoff = [5, 10, 20]
-    downloaded = 0
-    skipped = 0
-    failed_papers = []
+    retry_backoff = (5, 10, 20)
 
     console.print(f"\n[bold cyan]📥 Downloading PDFs for {len(accepted)} papers[/bold cyan]")
     console.print(f"[dim]   Rate limit: {download_delay}s between requests (arXiv policy)[/dim]")
@@ -525,88 +632,82 @@ async def run_scan(args: argparse.Namespace) -> dict:
         console=console,
     ) as progress:
         dl_task = progress.add_task("[green]Downloading PDFs...", total=len(accepted))
+        run = _PdfDownloadRun(
+            client=client,
+            progress=progress,
+            task_id=dl_task,
+            max_retries=max_retries,
+            retry_backoff=retry_backoff,
+            download_delay=download_delay,
+        )
 
         for i, sp in enumerate(accepted, 1):
-            paper = sp["paper"]
+            status = await _download_one_paper(run, sp["paper"], i)
+            if status == "downloaded":
+                stats.downloaded += 1
+            elif status == "skipped":
+                stats.skipped += 1
+            elif status == "failed":
+                stats.failed_papers.append(sp["paper"].title)
 
-            # Check if already downloaded (dedup)
-            existing = client.storage.get_local_path(paper.id)
-            if existing and existing.exists():
-                skipped += 1
-                progress.update(
-                    dl_task,
-                    advance=1,
-                    description=f"[dim]⏭️  Already stored: {paper.title[:40]}...[/dim]",
-                )
-                continue
+    return stats
 
-            # Rate limit between downloads
-            if i > 1:
-                progress.update(
-                    dl_task,
-                    description=f"[dim]⏳ Rate limiting ({download_delay}s)...[/dim]",
-                )
-                await asyncio.sleep(download_delay)
 
-            success = False
-            for attempt in range(max_retries):
-                try:
-                    if attempt > 0:
-                        await asyncio.sleep(retry_backoff[attempt])
-
-                    path = await client.download_paper(paper)
-                    if path:
-                        downloaded += 1
-                        progress.update(
-                            dl_task,
-                            advance=1,
-                            description=f"[green]✅ {paper.title[:45]}...[/green]",
-                        )
-                        success = True
-                        break
-                    else:
-                        progress.update(
-                            dl_task,
-                            advance=1,
-                            description=f"[yellow]⚠️  No PDF URL: {paper.title[:40]}...[/yellow]",
-                        )
-                        success = True  # Not a retry-able error
-                        break
-                except Exception:
-                    if attempt < max_retries - 1:
-                        progress.update(
-                            dl_task,
-                            description=f"[yellow]🔄 Retry {attempt + 1}: {paper.title[:35]}...[/yellow]",
-                        )
-                    else:
-                        progress.update(
-                            dl_task,
-                            advance=1,
-                            description=f"[red]❌ Failed: {paper.title[:40]}...[/red]",
-                        )
-                        failed_papers.append(paper.title)
-                        success = True  # Exhausted retries
-
-            if not success:
-                progress.update(dl_task, advance=1)
-
-    # ── Phase 5: Generate synergy report ─────────────────────────────────
-    report_path = generate_synergy_report(output_dir, scored, accepted)
-
-    # ── Final Summary ────────────────────────────────────────────────────
+def _print_scan_summary(
+    scored_count: int,
+    accepted_count: int,
+    irrelevant_count: int,
+    stats: _DownloadStats,
+    output_dir: Path,
+    report_path: Path,
+) -> None:
     summary_table = Table(title="🎯 Scan Complete", show_header=False, border_style="green")
     summary_table.add_column("Metric", style="bold")
     summary_table.add_column("Value", style="cyan")
-    summary_table.add_row("Papers fetched", str(len(scored)))
-    summary_table.add_row("Papers accepted", f"{len(accepted)} (relevant + marginal)")
-    summary_table.add_row("Papers filtered", f"{len(irrelevant)} (zero value)")
-    summary_table.add_row("PDFs downloaded", str(downloaded))
-    summary_table.add_row("PDFs skipped (dedup)", str(skipped))
-    if failed_papers:
-        summary_table.add_row("PDFs failed", f"[red]{len(failed_papers)}[/red]")
+    summary_table.add_row("Papers fetched", str(scored_count))
+    summary_table.add_row("Papers accepted", f"{accepted_count} (relevant + marginal)")
+    summary_table.add_row("Papers filtered", f"{irrelevant_count} (zero value)")
+    summary_table.add_row("PDFs downloaded", str(stats.downloaded))
+    summary_table.add_row("PDFs skipped (dedup)", str(stats.skipped))
+    if stats.failed_papers:
+        summary_table.add_row("PDFs failed", f"[red]{len(stats.failed_papers)}[/red]")
     summary_table.add_row("Output directory", str(output_dir))
     summary_table.add_row("Synergy report", str(report_path))
     console.print(summary_table)
+
+
+async def run_scan(args: argparse.Namespace) -> dict:
+    """Execute the full research scanning pipeline with rich progress bars."""
+    from scholarx.api_client import ScholarXClient
+    from scholarx.models import PaperSource
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    pdf_dir = output_dir / "pdfs"
+    pdf_dir.mkdir(exist_ok=True)
+
+    taxonomy = _load_scan_taxonomy(args)
+    categories = [c.strip() for c in args.categories.split(",")]
+    _print_scan_header(args, categories, output_dir)
+
+    client = ScholarXClient(sources=[PaperSource.ARXIV], storage_dir=str(pdf_dir))
+    result = await _fetch_scan_papers(client, args, categories)
+
+    if not result.papers:
+        console.print("[red]❌ No papers found. Exiting.[/red]")
+        return {"status": "no_papers", "count": 0}
+
+    scored = _score_scan_papers(result.papers, taxonomy)
+    relevant, marginal, irrelevant, accepted = _partition_scored_papers(scored)
+
+    console.print(_render_scoring_table(scored))
+    _print_filter_summary(relevant, marginal, irrelevant, accepted)
+    _write_scan_outputs(output_dir, args, categories, scored, accepted, irrelevant)
+
+    stats = await _download_accepted_papers(client, accepted)
+
+    report_path = generate_synergy_report(output_dir, scored, accepted)
+    _print_scan_summary(len(scored), len(accepted), len(irrelevant), stats, output_dir, report_path)
 
     return {
         "status": "success",
@@ -614,9 +715,9 @@ async def run_scan(args: argparse.Namespace) -> dict:
         "relevant": len(relevant),
         "marginal": len(marginal),
         "filtered_out": len(irrelevant),
-        "downloaded": downloaded,
-        "skipped_dedup": skipped,
-        "failed": len(failed_papers),
+        "downloaded": stats.downloaded,
+        "skipped_dedup": stats.skipped,
+        "failed": len(stats.failed_papers),
         "output_dir": str(output_dir),
         "synergy_report": str(report_path),
     }
