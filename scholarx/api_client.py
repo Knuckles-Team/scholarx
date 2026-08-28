@@ -60,6 +60,61 @@ async def _wait_for_download_tasks(tasks: list[asyncio.Task]) -> None:
         await asyncio.gather(*pending, return_exceptions=True)
 
 
+def _is_usable_raw_id(raw_id: str) -> bool:
+    return bool(raw_id and raw_id.strip())
+
+
+def _filter_download_ids(raw_ids: list[str]) -> list[str]:
+    return [r.strip() for r in raw_ids if _is_usable_raw_id(r)]
+
+
+def _present(items: list) -> list:
+    """Drop the None entries from a list, preserving order."""
+    return [item for item in items if item is not None]
+
+
+def _schedule_download_tasks(normalized: list[str | None], one_fn) -> list[asyncio.Task | None]:
+    """One asyncio.Task per non-None normalized id (None stays a placeholder,
+    keeping positional alignment with `normalized`)."""
+    return [asyncio.create_task(one_fn(pid)) if pid is not None else None for pid in normalized]
+
+
+def _normalize_download_ids(ids: list[str]) -> list[str | None]:
+    """Normalize each raw id, keeping position; an unparseable id becomes None."""
+    normalized: list[str | None] = []
+    for raw_id in ids:
+        try:
+            normalized.append(normalize_arxiv_id(raw_id))
+        except ValueError:
+            normalized.append(None)
+    return normalized
+
+
+def _build_download_result(pid: str | None, task: asyncio.Task | None) -> dict:
+    """Turn one normalized id + its (possibly None/cancelled/failed) task into
+    a `download_urls()` result dict."""
+    if pid is None or task is None:
+        return {
+            "paper_id": "invalid",
+            "status": "rejected",
+            "error": "Invalid arXiv identifier",
+        }
+    if task.cancelled():
+        return {
+            "paper_id": pid,
+            "status": "failed",
+            "error": "Download batch time limit exceeded",
+        }
+    try:
+        return task.result()
+    except Exception:
+        return {
+            "paper_id": pid,
+            "status": "failed",
+            "error": "Download failed",
+        }
+
+
 def _create_provider(source: PaperSource, config: SourceConfig) -> PaperProvider:
     """Factory to create a provider instance for a given source."""
     from .providers.arxiv import ArxivProvider
@@ -377,7 +432,7 @@ class ScholarXClient:
             ``paper_id``, ``status`` ('downloaded' | 'cached' | 'failed') and
             either ``local_path`` (+ ``size_bytes``) or ``error``.
         """
-        ids = [r.strip() for r in raw_ids if r and r.strip()]
+        ids = _filter_download_ids(raw_ids)
         if len(ids) > _MAX_DIRECT_DOWNLOAD_BATCH:
             raise ValueError("Direct download batch exceeds its limit")
         if not ids:
@@ -385,12 +440,7 @@ class ScholarXClient:
         limit = _download_concurrency(concurrency)
         semaphore = asyncio.Semaphore(limit)
 
-        normalized: list[str | None] = []
-        for raw_id in ids:
-            try:
-                normalized.append(normalize_arxiv_id(raw_id))
-            except ValueError:
-                normalized.append(None)
+        normalized = _normalize_download_ids(ids)
 
         async def _one(pid: str) -> dict:
             async with semaphore:
@@ -402,41 +452,12 @@ class ScholarXClient:
                 "size_bytes": size_bytes,
             }
 
-        tasks = [asyncio.create_task(_one(pid)) if pid is not None else None for pid in normalized]
-        valid_tasks = [task for task in tasks if task is not None]
+        tasks = _schedule_download_tasks(normalized, _one)
+        valid_tasks = _present(tasks)
         if valid_tasks:
             await _wait_for_download_tasks(valid_tasks)
 
-        results: list[dict] = []
-        for pid, task in zip(normalized, tasks, strict=True):
-            if pid is None or task is None:
-                results.append(
-                    {
-                        "paper_id": "invalid",
-                        "status": "rejected",
-                        "error": "Invalid arXiv identifier",
-                    }
-                )
-            elif task.cancelled():
-                results.append(
-                    {
-                        "paper_id": pid,
-                        "status": "failed",
-                        "error": "Download batch time limit exceeded",
-                    }
-                )
-            else:
-                try:
-                    results.append(task.result())
-                except Exception:
-                    results.append(
-                        {
-                            "paper_id": pid,
-                            "status": "failed",
-                            "error": "Download failed",
-                        }
-                    )
-        return results
+        return [_build_download_result(pid, task) for pid, task in zip(normalized, tasks, strict=True)]
 
     def queue_download(self, paper: Paper) -> str:
         """Queue a paper for background downloading.
