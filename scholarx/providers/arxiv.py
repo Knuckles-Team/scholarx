@@ -47,6 +47,53 @@ ARXIV_CATEGORIES = {
 }
 
 
+def _build_arxiv_search_page_params(query: SearchQuery, search_query: str, start: int, fetch_count: int) -> dict:
+    params = {
+        "start": start,
+        "max_results": fetch_count,
+        "sortBy": "relevance" if query.sort_by == "relevance" else "submittedDate",
+        "sortOrder": "descending",
+    }
+    if search_query:
+        params["search_query"] = search_query
+    if query.paper_ids:
+        clean_ids = [pid.replace("arXiv:", "").replace("arxiv:", "") for pid in query.paper_ids]
+        params["id_list"] = ",".join(clean_ids)
+    return params
+
+
+def _extract_entry_authors(entry: Any) -> list[str]:
+    authors = []
+    for author_elem in entry.findall("atom:author", _NS):
+        name = author_elem.findtext("atom:name", "", _NS)
+        if name:
+            authors.append(name.strip())
+    return authors
+
+
+def _extract_entry_categories(entry: Any) -> list[str]:
+    categories = []
+    for cat_elem in entry.findall("atom:category", _NS):
+        term = cat_elem.get("term", "")
+        if term:
+            categories.append(term)
+    return categories
+
+
+def _extract_entry_doi(entry: Any) -> str | None:
+    doi_elem = entry.find("arxiv:doi", _NS)
+    if doi_elem is not None and doi_elem.text:
+        return doi_elem.text.strip()
+    return None
+
+
+def _extract_entry_pdf_url(entry: Any) -> str | None:
+    for link in entry.findall("atom:link", _NS):
+        if link.get("title") == "pdf":
+            return link.get("href")
+    return None
+
+
 class ArxivProvider(PaperProvider):
     """arXiv paper provider using the Atom/OpenSearch API."""
 
@@ -61,31 +108,22 @@ class ArxivProvider(PaperProvider):
 
         while start < query.max_results:
             fetch_count = min(query.max_results - start, max_per_page)
-            params = {
-                "start": start,
-                "max_results": fetch_count,
-                "sortBy": "relevance" if query.sort_by == "relevance" else "submittedDate",
-                "sortOrder": "descending",
-            }
-            if search_query:
-                params["search_query"] = search_query
-            if query.paper_ids:
-                clean_ids = [pid.replace("arXiv:", "").replace("arxiv:", "") for pid in query.paper_ids]
-                params["id_list"] = ",".join(clean_ids)
+            params = _build_arxiv_search_page_params(query, search_query, start, fetch_count)
 
             try:
                 response = await self._get("/query", params=params)
                 papers = self._parse_atom_feed(response.text)
-                if not papers:
-                    break
-                all_papers.extend(papers)
-                start += len(papers)
-
-                # If we got fewer than requested for this page, we've hit the end
-                if len(papers) < fetch_count:
-                    break
             except Exception as e:
                 logger.error("arXiv search failed: error_type=%s", type(e).__name__)
+                break
+
+            if not papers:
+                break
+            all_papers.extend(papers)
+            start += len(papers)
+
+            # If we got fewer than requested for this page, we've hit the end
+            if len(papers) < fetch_count:
                 break
 
         return all_papers
@@ -226,36 +264,15 @@ class ArxivProvider(PaperProvider):
         title = entry.findtext("atom:title", "", _NS).strip().replace("\n", " ")
         abstract = entry.findtext("atom:summary", "", _NS).strip().replace("\n", " ")
 
-        # Authors
-        authors = []
-        for author_elem in entry.findall("atom:author", _NS):
-            name = author_elem.findtext("atom:name", "", _NS)
-            if name:
-                authors.append(name.strip())
-
-        # Categories
-        categories = []
-        for cat_elem in entry.findall("atom:category", _NS):
-            term = cat_elem.get("term", "")
-            if term:
-                categories.append(term)
+        authors = _extract_entry_authors(entry)
+        categories = _extract_entry_categories(entry)
 
         # Dates
         published = entry.findtext("atom:published", "", _NS)
         updated = entry.findtext("atom:updated", "", _NS)
 
-        # DOI
-        doi = None
-        doi_elem = entry.find("arxiv:doi", _NS)
-        if doi_elem is not None and doi_elem.text:
-            doi = doi_elem.text.strip()
-
-        # PDF URL
-        pdf_url = None
-        for link in entry.findall("atom:link", _NS):
-            if link.get("title") == "pdf":
-                pdf_url = link.get("href")
-                break
+        doi = _extract_entry_doi(entry)
+        pdf_url = _extract_entry_pdf_url(entry)
 
         return Paper(
             id=f"arxiv:{arxiv_id}",
