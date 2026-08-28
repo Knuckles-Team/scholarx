@@ -16,6 +16,7 @@ import asyncio
 import json
 import os
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -694,18 +695,9 @@ def cli():
         parser.print_help()
 
 
-def _run_auto_analysis(args: argparse.Namespace) -> None:
-    """Run comparative-analysis innovation extraction on relevant papers.
-
-    CONCEPT:SX-OS.scaling.chains-comparative-analysis-extract — Chains the comparative-analysis extract_innovations.py
-    script on papers with score >= 3.0 against the target project codebases.
-    """
-    import subprocess
-
-    output_dir = Path(args.output_dir)
-
-    # Locate the innovation extractor script
-    packages_root = Path(os.environ.get("AGENT_PACKAGES_ROOT", str(Path(__file__).resolve().parents[3]))).expanduser()
+def _locate_innovation_extractor(args: argparse.Namespace, packages_root: Path) -> Path | None:
+    """Find the comparative-analysis `extract_innovations.py` script, honoring
+    `SCHOLARX_ANALYSIS_SCRIPT` if set."""
     configured_extractor = os.environ.get("SCHOLARX_ANALYSIS_SCRIPT")
     extractor_paths = [Path(configured_extractor).expanduser()] if configured_extractor else []
     extractor_paths.append(
@@ -718,48 +710,39 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
         / "scripts"
         / "extract_innovations.py"
     )
-    extractor = next((p for p in extractor_paths if p.exists()), None)
+    return next((p for p in extractor_paths if p.exists()), None)
 
-    if not extractor:
-        console.print("[yellow]⚠️  comparative-analysis skill not found. Skipping auto-analysis.[/yellow]")
-        console.print("[dim]   Install via: skill-installer --tool antigravity --skills comparative-analysis[/dim]")
-        return
 
-    # Auto-detect target projects or use user-specified
+def _resolve_analysis_targets(args: argparse.Namespace, packages_root: Path) -> list[Path]:
+    """Auto-detect target project codebases to scan, or use user-specified ones."""
     if args.target_projects:
         targets = [Path(t) for t in args.target_projects]
     else:
-        # Default: scan the main ecosystem codebases
         agents_root = packages_root
         targets = [
             agents_root / "agent-utilities",
             agents_root / "agents" / "scholarx",
         ]
-        # Also scan agent-terminal-ui and agent-webui if they exist
         for sub in ["agent-terminal-ui", "agent-webui"]:
             candidate = agents_root / sub
             if candidate.exists():
                 targets.append(candidate)
 
-    targets = [t for t in targets if t.exists()]
-    if not targets:
-        console.print("[yellow]⚠️  No target projects found for analysis.[/yellow]")
-        return
+    return [t for t in targets if t.exists()]
 
-    # Find relevant paper markdowns (score >= 3.0)
+
+def _select_relevant_paper_markdowns(output_dir: Path, max_papers: int = 10) -> list[Path]:
+    """Return the top-N accepted paper markdowns (by relevance) to analyze."""
     paper_mds = sorted(output_dir.glob("paper_*.md"))
-    if not paper_mds:
-        console.print("[yellow]⚠️  No paper markdowns found in output directory.[/yellow]")
-        return
+    limit = min(max_papers, len(paper_mds))
+    return paper_mds[:limit]
 
-    # Only analyze top N papers to keep it focused
-    max_papers = min(10, len(paper_mds))
-    paper_mds = paper_mds[:max_papers]
 
+def _print_auto_analysis_header(paper_mds: list[Path], targets: list[Path], extractor: Path) -> None:
     console.print(
         Panel.fit(
             f"[bold magenta]🔬 Innovation Extraction (CONCEPT:SX-OS.scaling.chains-comparative-analysis-extract)[/bold magenta]\n"
-            f"Papers: [green]{len(paper_mds)}[/green] (top {max_papers} by relevance)\n"
+            f"Papers: [green]{len(paper_mds)}[/green] (top {len(paper_mds)} by relevance)\n"
             f"Targets: [cyan]{', '.join(t.name for t in targets)}[/cyan]\n"
             f"Extractor: [dim]{extractor}[/dim]",
             title="Auto-Analysis",
@@ -767,9 +750,51 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
         )
     )
 
-    innovations_dir = output_dir / "innovations"
-    innovations_dir.mkdir(exist_ok=True)
-    all_innovations = []
+
+def _extract_innovations_for_target(paper_md: Path, target: Path, innovations_dir: Path, extractor: Path) -> dict | None:
+    """Run the extractor for one (paper, target) pair and return its
+    `{"paper", "target", "innovations"}` entry, or None if nothing usable came back."""
+    out_file = innovations_dir / f"{paper_md.stem}_{target.name}_innovations.json"
+    cmd = [
+        sys.executable,
+        str(extractor),
+        "--source",
+        str(paper_md),
+        "--target",
+        str(target),
+        "--output",
+        str(out_file),
+    ]
+    try:
+        subprocess.run(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=60,
+            check=False,
+        )
+        if out_file.exists():
+            try:
+                data = json.loads(out_file.read_text())
+                if data.get("innovations"):
+                    return {
+                        "paper": paper_md.stem,
+                        "target": target.name,
+                        "innovations": data["innovations"],
+                    }
+            except json.JSONDecodeError:
+                pass
+    except Exception as e:
+        console.print(f"[dim yellow]  ⚠ Paper analysis failed: {type(e).__name__}[/dim yellow]")
+    return None
+
+
+def _run_innovation_extraction(
+    paper_mds: list[Path], targets: list[Path], innovations_dir: Path, extractor: Path
+) -> list[dict]:
+    """Extract innovations for every (paper, target) pair, with a progress bar."""
+    all_innovations: list[dict] = []
 
     with Progress(
         SpinnerColumn(),
@@ -782,52 +807,42 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
         analysis_task = progress.add_task("[magenta]Extracting innovations...", total=len(paper_mds))
 
         for paper_md in paper_mds:
-            paper_name = paper_md.stem
             progress.update(
                 analysis_task,
-                description=f"[magenta]Analyzing {paper_name}...",
+                description=f"[magenta]Analyzing {paper_md.stem}...",
             )
-
             for target in targets:
-                out_file = innovations_dir / f"{paper_name}_{target.name}_innovations.json"
-                cmd = [
-                    sys.executable,
-                    str(extractor),
-                    "--source",
-                    str(paper_md),
-                    "--target",
-                    str(target),
-                    "--output",
-                    str(out_file),
-                ]
-                try:
-                    subprocess.run(
-                        cmd,
-                        stdin=subprocess.DEVNULL,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        timeout=60,
-                        check=False,
-                    )
-                    if out_file.exists():
-                        try:
-                            data = json.loads(out_file.read_text())
-                            if data.get("innovations"):
-                                all_innovations.append(
-                                    {
-                                        "paper": paper_name,
-                                        "target": target.name,
-                                        "innovations": data["innovations"],
-                                    }
-                                )
-                        except json.JSONDecodeError:
-                            pass
-                except Exception as e:
-                    console.print(f"[dim yellow]  ⚠ Paper analysis failed: {type(e).__name__}[/dim yellow]")
-
+                entry = _extract_innovations_for_target(paper_md, target, innovations_dir, extractor)
+                if entry is not None:
+                    all_innovations.append(entry)
             progress.update(analysis_task, advance=1)
 
-    # ── Consolidate innovations report ───────────────────────────────────
+    return all_innovations
+
+
+def _render_innovation_bullet(innov: dict) -> list[str]:
+    """Render one innovation's markdown bullet, with its optional domain/analogy sub-lines."""
+    lines = [f"- **{innov.get('concept', 'N/A')}**: {innov.get('description', '')}"]
+    if innov.get("domain"):
+        lines.append(f"  - Domain: `{innov['domain']}`")
+    if innov.get("analogy"):
+        lines.append(f"  - Analogy: {innov['analogy']}")
+    return lines
+
+
+def _render_innovations_by_paper(all_innovations: list[dict]) -> list[str]:
+    """Render the '## Innovations by Paper' section body."""
+    lines = ["## Innovations by Paper\n"]
+    for entry in all_innovations:
+        lines.append(f"### {entry['paper']} → {entry['target']}\n")
+        for innov in entry["innovations"]:
+            lines.extend(_render_innovation_bullet(innov))
+        lines.append("")
+    return lines
+
+
+def _render_innovations_report(paper_mds: list[Path], targets: list[Path], all_innovations: list[dict]) -> str:
+    """Build the markdown body of the consolidated innovations report."""
     report_lines = [
         "# Innovation Extraction Report",
         "",
@@ -839,25 +854,24 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
     ]
 
     if all_innovations:
-        report_lines.append("## Innovations by Paper\n")
-        for entry in all_innovations:
-            report_lines.append(f"### {entry['paper']} → {entry['target']}\n")
-            for innov in entry["innovations"]:
-                report_lines.append(f"- **{innov.get('concept', 'N/A')}**: {innov.get('description', '')}")
-                if innov.get("domain"):
-                    report_lines.append(f"  - Domain: `{innov['domain']}`")
-                if innov.get("analogy"):
-                    report_lines.append(f"  - Analogy: {innov['analogy']}")
-            report_lines.append("")
+        report_lines.extend(_render_innovations_by_paper(all_innovations))
     else:
         report_lines.append("> No transferable innovations extracted.\n")
 
+    return "\n".join(report_lines)
+
+
+def _write_innovations_report(
+    output_dir: Path, innovations_dir: Path, paper_mds: list[Path], targets: list[Path], all_innovations: list[dict]
+) -> Path:
+    """Write the consolidated markdown report and JSON, returning the report path."""
     innovations_report = output_dir / "innovations_report.md"
-    innovations_report.write_text("\n".join(report_lines))
-
-    # Save consolidated JSON
+    innovations_report.write_text(_render_innovations_report(paper_mds, targets, all_innovations))
     (innovations_dir / "consolidated.json").write_text(json.dumps(all_innovations, indent=2))
+    return innovations_report
 
+
+def _print_auto_analysis_complete(innovations_report: Path, innovations_dir: Path, all_innovations: list[dict]) -> None:
     total = sum(len(i["innovations"]) for i in all_innovations)
     console.print(
         Panel.fit(
@@ -869,6 +883,41 @@ def _run_auto_analysis(args: argparse.Namespace) -> None:
             border_style="green",
         )
     )
+
+
+def _run_auto_analysis(args: argparse.Namespace) -> None:
+    """Run comparative-analysis innovation extraction on relevant papers.
+
+    CONCEPT:SX-OS.scaling.chains-comparative-analysis-extract — Chains the comparative-analysis extract_innovations.py
+    script on papers with score >= 3.0 against the target project codebases.
+    """
+    output_dir = Path(args.output_dir)
+    packages_root = Path(os.environ.get("AGENT_PACKAGES_ROOT", str(Path(__file__).resolve().parents[3]))).expanduser()
+
+    extractor = _locate_innovation_extractor(args, packages_root)
+    if not extractor:
+        console.print("[yellow]⚠️  comparative-analysis skill not found. Skipping auto-analysis.[/yellow]")
+        console.print("[dim]   Install via: skill-installer --tool antigravity --skills comparative-analysis[/dim]")
+        return
+
+    targets = _resolve_analysis_targets(args, packages_root)
+    if not targets:
+        console.print("[yellow]⚠️  No target projects found for analysis.[/yellow]")
+        return
+
+    paper_mds = _select_relevant_paper_markdowns(output_dir)
+    if not paper_mds:
+        console.print("[yellow]⚠️  No paper markdowns found in output directory.[/yellow]")
+        return
+
+    _print_auto_analysis_header(paper_mds, targets, extractor)
+
+    innovations_dir = output_dir / "innovations"
+    innovations_dir.mkdir(exist_ok=True)
+
+    all_innovations = _run_innovation_extraction(paper_mds, targets, innovations_dir, extractor)
+    innovations_report = _write_innovations_report(output_dir, innovations_dir, paper_mds, targets, all_innovations)
+    _print_auto_analysis_complete(innovations_report, innovations_dir, all_innovations)
 
 
 def _show_status():
