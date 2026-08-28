@@ -241,33 +241,24 @@ def score_paper(title: str, abstract: str, taxonomy: dict[str, Any] | None = Non
 # ── Synergy Report ──────────────────────────────────────────────────────────
 
 
-def generate_synergy_report(
-    output_dir: Path,
-    scored: list[dict],
-    accepted: list[dict],
-) -> Path:
-    """Generate a consolidated synergy_report.md from scored papers."""
-    domain_agg: dict[str, list[dict]] = defaultdict(list)
-    lines = [
-        "# Research Synergy Report",
-        "",
-        f"**Date**: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
-        f"**Papers Fetched**: {len(scored)}",
-        f"**Papers Accepted**: {len(accepted)}",
-        "",
-        "## Relevance Ranking",
-        "",
-        "| # | Score | Verdict | Domains | Title |",
-        "|---|-------|---------|---------|-------|",
-    ]
-
+def _render_ranking_rows(accepted: list[dict]) -> list[str]:
+    rows = []
     for i, sp in enumerate(accepted, 1):
         p = sp["paper"]
         s = sp["score"]
         title = p.title if hasattr(p, "title") else p.get("title", "")
         domains = ", ".join(s["domain_hits"].keys()) if s["domain_hits"] else "—"
         icon = {"relevant": "✅", "marginal": "🟡", "irrelevant": "❌"}[s["verdict"]]
-        lines.append(f"| {i} | {s['total_score']} | {icon} {s['verdict']} | {domains} | {title[:70]} |")
+        rows.append(f"| {i} | {s['total_score']} | {icon} {s['verdict']} | {domains} | {title[:70]} |")
+    return rows
+
+
+def _aggregate_domain_hits(accepted: list[dict]) -> dict[str, list[dict]]:
+    domain_agg: dict[str, list[dict]] = defaultdict(list)
+    for sp in accepted:
+        p = sp["paper"]
+        s = sp["score"]
+        title = p.title if hasattr(p, "title") else p.get("title", "")
         for domain, info in s["domain_hits"].items():
             for kw in info.get("keywords", []):
                 domain_agg[domain].append(
@@ -278,8 +269,11 @@ def generate_synergy_report(
                         "domain_score": info["domain_score"],
                     }
                 )
+    return domain_agg
 
-    lines += [
+
+def _render_domain_synergies_section(domain_agg: dict[str, list[dict]]) -> list[str]:
+    lines = [
         "",
         "## Synergies by Domain",
         "",
@@ -292,8 +286,11 @@ def generate_synergy_report(
         kws = len(entries)
         total_score = sum(e["domain_score"] for e in entries) / max(papers, 1)
         lines.append(f"| `{domain}` | {papers} | {kws} | {total_score:.1f} avg |")
+    return lines
 
-    lines += ["", "## Domain Integration Roadmap", ""]
+
+def _render_domain_roadmap_section(domain_agg: dict[str, list[dict]]) -> list[str]:
+    lines = ["", "## Domain Integration Roadmap", ""]
     for domain in sorted(domain_agg.keys(), key=lambda d: len(domain_agg[d]), reverse=True):
         entries = domain_agg[domain]
         paper_groups: dict[str, list[str]] = defaultdict(list)
@@ -304,14 +301,45 @@ def generate_synergy_report(
         for paper, paper_kws in paper_groups.items():
             lines.append(f"- **{paper[:70]}** — keywords: {', '.join(paper_kws)}")
         lines.append("")
+    return lines
 
+
+def _render_filtered_papers_section(scored: list[dict]) -> list[str]:
     filtered = [sp for sp in scored if sp["score"]["verdict"] == "irrelevant"]
-    if filtered:
-        lines += ["## Filtered Papers (No Value)", ""]
-        for sp in filtered:
-            title = sp["paper"].title if hasattr(sp["paper"], "title") else sp["paper"].get("title", "")
-            lines.append(f"- ❌ [{sp['score']['total_score']}] {title}")
-        lines.append("")
+    if not filtered:
+        return []
+    lines = ["## Filtered Papers (No Value)", ""]
+    for sp in filtered:
+        title = sp["paper"].title if hasattr(sp["paper"], "title") else sp["paper"].get("title", "")
+        lines.append(f"- ❌ [{sp['score']['total_score']}] {title}")
+    lines.append("")
+    return lines
+
+
+def generate_synergy_report(
+    output_dir: Path,
+    scored: list[dict],
+    accepted: list[dict],
+) -> Path:
+    """Generate a consolidated synergy_report.md from scored papers."""
+    lines = [
+        "# Research Synergy Report",
+        "",
+        f"**Date**: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
+        f"**Papers Fetched**: {len(scored)}",
+        f"**Papers Accepted**: {len(accepted)}",
+        "",
+        "## Relevance Ranking",
+        "",
+        "| # | Score | Verdict | Domains | Title |",
+        "|---|-------|---------|---------|-------|",
+    ]
+    lines.extend(_render_ranking_rows(accepted))
+
+    domain_agg = _aggregate_domain_hits(accepted)
+    lines.extend(_render_domain_synergies_section(domain_agg))
+    lines.extend(_render_domain_roadmap_section(domain_agg))
+    lines.extend(_render_filtered_papers_section(scored))
 
     report_path = output_dir / "synergy_report.md"
     report_path.write_text("\n".join(lines))
