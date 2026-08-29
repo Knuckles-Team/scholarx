@@ -92,6 +92,65 @@ class RSSFeedResult:
     replace_count: int = 0
 
 
+def _tally_announce_type(result: RSSFeedResult, announce_type: str | None) -> None:
+    if announce_type == "new":
+        result.new_count += 1
+    elif announce_type == "cross":
+        result.cross_count += 1
+    elif announce_type == "replace":
+        result.replace_count += 1
+
+
+def _is_irrelevant_primary_category(category: str) -> bool:
+    return category in IRRELEVANT_PRIMARY_CATEGORIES or any(
+        category.startswith(prefix) for prefix in ("astro-ph.", "cond-mat.", "hep-", "nucl-", "nlin.")
+    )
+
+
+def _should_keep_paper(paper: Paper, include_types: Any, pre_filter: bool) -> bool:
+    """Apply the announce-type include-list, then (if enabled) the
+    irrelevant-primary-category pre-filter."""
+    if paper.announce_type and paper.announce_type not in include_types:
+        return False
+    if pre_filter and paper.categories and _is_irrelevant_primary_category(paper.categories[0]):
+        return False
+    return True
+
+
+def _extract_item_announce_type(item: Any) -> str | None:
+    elem = item.find("arxiv:announce_type", _RSS_NS)
+    if elem is not None and elem.text is not None:
+        return elem.text.strip()
+    return None
+
+
+def _extract_item_categories(item: Any) -> list[str]:
+    categories = []
+    for cat_elem in item.findall("category"):
+        cat_text = cat_elem.text
+        if cat_text:
+            categories.append(cat_text.strip())
+    return categories
+
+
+def _extract_item_authors(item: Any) -> list[str]:
+    # dc:creator contains comma-separated author names. Split on comma, but
+    # be careful with names like "O'Brien, Jr." -- arXiv RSS typically uses
+    # "First Last, First Last" format, so this is left as individual names.
+    creator_elem = item.find("dc:creator", _RSS_NS)
+    if creator_elem is not None and creator_elem.text:
+        raw_authors = creator_elem.text
+        return [a.strip() for a in raw_authors.split(",") if a.strip()]
+    return []
+
+
+def _extract_item_doi(item: Any) -> str | None:
+    doi_elem = item.find("arxiv:DOI", _RSS_NS)
+    if doi_elem is not None and doi_elem.text:
+        return doi_elem.text.strip()
+    return None
+
+
 class RSSFeedProvider:
     """Generic RSS/Atom feed parser for academic paper sources.
 
@@ -214,26 +273,10 @@ class RSSFeedProvider:
             if paper is None:
                 continue
 
-            # Count by type
-            if paper.announce_type == "new":
-                result.new_count += 1
-            elif paper.announce_type == "cross":
-                result.cross_count += 1
-            elif paper.announce_type == "replace":
-                result.replace_count += 1
+            _tally_announce_type(result, paper.announce_type)
 
-            # Filter by announce type
-            if paper.announce_type and paper.announce_type not in self._include_types:
+            if not _should_keep_paper(paper, self._include_types, self._pre_filter):
                 continue
-
-            # Pre-filter irrelevant primary categories
-            if self._pre_filter and paper.categories:
-                primary_cat = paper.categories[0]
-                # Check if primary category (or its prefix) is irrelevant
-                if primary_cat in IRRELEVANT_PRIMARY_CATEGORIES or any(
-                    primary_cat.startswith(prefix) for prefix in ("astro-ph.", "cond-mat.", "hep-", "nucl-", "nlin.")
-                ):
-                    continue
 
             result.papers.append(paper)
 
@@ -252,38 +295,11 @@ class RSSFeedProvider:
         # Extract arXiv ID from link
         arxiv_id = link.rstrip("/").split("/")[-1]
 
-        # Extract announce_type from the arxiv namespace
-        announce_type_elem = item.find("arxiv:announce_type", _RSS_NS)
-        announce_type = (
-            announce_type_elem.text.strip()
-            if announce_type_elem is not None and announce_type_elem.text is not None
-            else None
-        )
-
-        # Extract abstract from description (strip arXiv ID prefix)
+        announce_type = _extract_item_announce_type(item)
         abstract = self._extract_abstract(description)
-
-        # Extract categories
-        categories = []
-        for cat_elem in item.findall("category"):
-            cat_text = cat_elem.text
-            if cat_text:
-                categories.append(cat_text.strip())
-
-        # Extract authors from dc:creator
-        creator_elem = item.find("dc:creator", _RSS_NS)
-        authors = []
-        if creator_elem is not None and creator_elem.text:
-            # dc:creator contains comma-separated author names
-            raw_authors = creator_elem.text
-            # Split on comma, but be careful with names like "O'Brien, Jr."
-            authors = [a.strip() for a in raw_authors.split(",") if a.strip()]
-            # Re-join pairs that look like "Last, First" -> leave as individual names
-            # arXiv RSS typically uses "First Last, First Last" format
-
-        # Extract DOI if present
-        doi_elem = item.find("arxiv:DOI", _RSS_NS)
-        doi = doi_elem.text.strip() if doi_elem is not None and doi_elem.text else None
+        categories = _extract_item_categories(item)
+        authors = _extract_item_authors(item)
+        doi = _extract_item_doi(item)
 
         return Paper(
             id=f"arxiv:{arxiv_id}",
