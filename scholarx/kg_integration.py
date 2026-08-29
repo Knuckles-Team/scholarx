@@ -18,6 +18,24 @@ from .paper_storage import PaperStorage
 logger = logging.getLogger(__name__)
 
 
+def _kg_has_source_with_doi(graph, doi: str) -> bool:
+    """True if `graph` has a SourceNode whose `doi` matches."""
+    for _, data in graph.nodes(data=True):
+        if data.get("type") == "source" and data.get("doi") == doi:
+            return True
+    return False
+
+
+def _kg_has_article_with_title(graph, normalized_title: str) -> bool:
+    """True if `graph` has an ArticleNode whose normalized name matches."""
+    from .models import normalize_title
+
+    for _, data in graph.nodes(data=True):
+        if data.get("type") == "article" and normalize_title(data.get("name", "")) == normalized_title:
+            return True
+    return False
+
+
 class ScholarXKGBridge:
     """Bridges ScholarX papers into the Knowledge Graph. (CONCEPT:SX-OS.config.au)
 
@@ -138,22 +156,10 @@ class ScholarXKGBridge:
             return False
 
         graph = self.engine.graph
-        # Check by DOI in SourceNode
-        if paper.doi:
-            for _, data in graph.nodes(data=True):
-                if data.get("type") == "source" and data.get("doi") == paper.doi:
-                    return True
-
-        # Check by normalized title in ArticleNode
-        if paper.normalized_title:
-            from .models import normalize_title
-
-            for _, data in graph.nodes(data=True):
-                if data.get("type") == "article":
-                    existing_title = normalize_title(data.get("name", ""))
-                    if existing_title == paper.normalized_title:
-                        return True
-
+        if paper.doi and _kg_has_source_with_doi(graph, paper.doi):
+            return True
+        if paper.normalized_title and _kg_has_article_with_title(graph, paper.normalized_title):
+            return True
         return False
 
     async def _ingest_abstract_only(self, paper: Paper, kb_name: str) -> dict:

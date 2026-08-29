@@ -60,6 +60,66 @@ if _OLD_STORAGE_DIR.exists() and _OLD_STORAGE_DIR != DEFAULT_STORAGE_DIR:
         )
 
 
+def _ensure_destination_within_storage(destination: Path, storage_dir: Path) -> Path:
+    """Resolve `destination` and enforce it: not a symlink, and inside `storage_dir`."""
+    if destination.is_symlink():
+        raise ValueError("Download destination must not be a symbolic link")
+    destination = destination.resolve()
+    try:
+        destination.relative_to(storage_dir)
+    except ValueError as exc:
+        raise ValueError("Download destination escapes the storage directory") from exc
+    return destination
+
+
+def _redirect_target(response, current_url: str) -> str | None:
+    """If `response` is a redirect, return the resolved next URL; else None."""
+    if response.status_code not in {301, 302, 303, 307, 308}:
+        return None
+    location = response.headers.get("location")
+    if not location:
+        raise ValueError("PDF redirect omitted its destination")
+    return urljoin(current_url, location)
+
+
+def _check_declared_content_length(declared: str | None) -> None:
+    if not declared:
+        return
+    try:
+        declared_size = int(declared)
+    except ValueError as exc:
+        raise ValueError("Invalid PDF content length") from exc
+    if declared_size < 0 or declared_size > _MAX_PDF_BYTES:
+        raise ValueError("PDF size limit exceeded")
+
+
+async def _stream_pdf_body(response, storage_dir: Path) -> tuple[Path, int, bytearray]:
+    """Stream `response`'s body to a temp file inside `storage_dir`, enforcing
+    the size cap as bytes arrive. Returns (temp_path, total_bytes,
+    header_bytes). The caller owns cleanup of the temp file."""
+    total = 0
+    header = bytearray()
+    with tempfile.NamedTemporaryFile(
+        mode="wb",
+        dir=storage_dir,
+        prefix=".download-",
+        suffix=".part",
+        delete=False,
+    ) as output:
+        part_path = Path(output.name)
+        async for chunk in response.aiter_bytes():
+            if not chunk:
+                continue
+            total += len(chunk)
+            if total > _MAX_PDF_BYTES:
+                raise ValueError("PDF size limit exceeded")
+            if len(header) < _PDF_HEADER_SCAN_BYTES:
+                remaining = _PDF_HEADER_SCAN_BYTES - len(header)
+                header.extend(chunk[:remaining])
+            output.write(chunk)
+    return part_path, total, header
+
+
 class PaperStorage:
     """Manages local storage of downloaded research papers. (CONCEPT:SX-OS.config.sx-4)"""
 
@@ -226,13 +286,7 @@ class PaperStorage:
 
     async def _download_pdf_bounded(self, url: str, destination: Path) -> tuple[Path, int]:
         """Perform one download under the caller's absolute wall deadline."""
-        if destination.is_symlink():
-            raise ValueError("Download destination must not be a symbolic link")
-        destination = destination.resolve()
-        try:
-            destination.relative_to(self.storage_dir)
-        except ValueError as exc:
-            raise ValueError("Download destination escapes the storage directory") from exc
+        destination = _ensure_destination_within_storage(destination, self.storage_dir)
 
         current_url = url
         async with create_async_http_client(
@@ -245,45 +299,17 @@ class PaperStorage:
             for _ in range(_MAX_REDIRECTS + 1):
                 await _validate_download_url(current_url)
                 async with client.stream("GET", current_url) as response:
-                    if response.status_code in {301, 302, 303, 307, 308}:
-                        location = response.headers.get("location")
-                        if not location:
-                            raise ValueError("PDF redirect omitted its destination")
-                        current_url = urljoin(current_url, location)
+                    redirect_url = _redirect_target(response, current_url)
+                    if redirect_url is not None:
+                        current_url = redirect_url
                         continue
 
                     response.raise_for_status()
-                    declared = response.headers.get("content-length")
-                    if declared:
-                        try:
-                            declared_size = int(declared)
-                        except ValueError as exc:
-                            raise ValueError("Invalid PDF content length") from exc
-                        if declared_size < 0 or declared_size > _MAX_PDF_BYTES:
-                            raise ValueError("PDF size limit exceeded")
+                    _check_declared_content_length(response.headers.get("content-length"))
 
                     part_path: Path | None = None
                     try:
-                        total = 0
-                        header = bytearray()
-                        with tempfile.NamedTemporaryFile(
-                            mode="wb",
-                            dir=self.storage_dir,
-                            prefix=".download-",
-                            suffix=".part",
-                            delete=False,
-                        ) as output:
-                            part_path = Path(output.name)
-                            async for chunk in response.aiter_bytes():
-                                if not chunk:
-                                    continue
-                                total += len(chunk)
-                                if total > _MAX_PDF_BYTES:
-                                    raise ValueError("PDF size limit exceeded")
-                                if len(header) < _PDF_HEADER_SCAN_BYTES:
-                                    remaining = _PDF_HEADER_SCAN_BYTES - len(header)
-                                    header.extend(chunk[:remaining])
-                                output.write(chunk)
+                        part_path, total, header = await _stream_pdf_body(response, self.storage_dir)
                         if b"%PDF-" not in header:
                             raise ValueError("Downloaded content is not a PDF")
                         part_path.replace(destination)
@@ -295,30 +321,46 @@ class PaperStorage:
         raise ValueError("PDF redirect limit exceeded")
 
 
+def _strip_arxiv_prefix(raw: str) -> str:
+    if raw.lower().startswith("arxiv:") and "://" not in raw:
+        return raw[6:]
+    return raw
+
+
+def _is_arxiv_https_host(parsed) -> bool:
+    return parsed.scheme.lower() == "https" and (parsed.hostname or "").lower() in {"arxiv.org", "www.arxiv.org"}
+
+
+def _has_disallowed_url_parts(parsed) -> bool:
+    return parsed.username is not None or parsed.password is not None or bool(parsed.query) or bool(parsed.fragment)
+
+
+def _extract_id_from_arxiv_url(parsed) -> str:
+    """Validate `parsed` is a canonical arxiv.org HTTPS URL and extract the
+    identifier from its /abs/ or /pdf/ path."""
+    if not _is_arxiv_https_host(parsed) or _has_disallowed_url_parts(parsed):
+        raise ValueError("Only canonical HTTPS arXiv URLs are accepted")
+    path = parsed.path.lstrip("/")
+    prefix, separator, identifier = path.partition("/")
+    if not separator or prefix.lower() not in {"abs", "pdf"}:
+        raise ValueError("Invalid arXiv URL path")
+    return identifier
+
+
+def _has_invalid_arxiv_id_chars(raw: str) -> bool:
+    return not raw or len(raw) > 128 or any(char in raw for char in "\x00\r\n")
+
+
 def normalize_arxiv_id(value: str) -> str:
     """Return a canonical arXiv ID or reject URL/path-shaped input."""
     raw = str(value or "").strip()
-    if not raw or len(raw) > 128 or any(char in raw for char in "\x00\r\n"):
+    if _has_invalid_arxiv_id_chars(raw):
         raise ValueError("Invalid arXiv identifier")
-    if raw.lower().startswith("arxiv:") and "://" not in raw:
-        raw = raw[6:]
+    raw = _strip_arxiv_prefix(raw)
 
     parsed = urlsplit(raw)
     if parsed.scheme or parsed.netloc:
-        if (
-            parsed.scheme.lower() != "https"
-            or (parsed.hostname or "").lower() not in {"arxiv.org", "www.arxiv.org"}
-            or parsed.username is not None
-            or parsed.password is not None
-            or parsed.query
-            or parsed.fragment
-        ):
-            raise ValueError("Only canonical HTTPS arXiv URLs are accepted")
-        path = parsed.path.lstrip("/")
-        prefix, separator, identifier = path.partition("/")
-        if not separator or prefix.lower() not in {"abs", "pdf"}:
-            raise ValueError("Invalid arXiv URL path")
-        raw = identifier
+        raw = _extract_id_from_arxiv_url(parsed)
 
     if raw.lower().endswith(".pdf"):
         raw = raw[:-4]
@@ -327,8 +369,9 @@ def normalize_arxiv_id(value: str) -> str:
     return raw
 
 
-async def _validate_download_url(url: str) -> None:
-    """Reject local/private destinations before each outbound PDF request."""
+def _resolve_url_host_port(url: str) -> tuple[str, int]:
+    """Parse `url` and enforce it's an unauthenticated, non-local HTTPS URL.
+    Returns (hostname, port)."""
     try:
         parsed = urlsplit(url)
         port = parsed.port or 443
@@ -340,7 +383,10 @@ async def _validate_download_url(url: str) -> None:
     lowered = hostname.rstrip(".").lower()
     if lowered == "localhost" or lowered.endswith((".localhost", ".local", ".internal")):
         raise ValueError("PDF URL resolves to a local address")
+    return hostname, port
 
+
+async def _resolve_dns_addresses(hostname: str, port: int) -> list:
     try:
         addresses = await asyncio.wait_for(
             asyncio.to_thread(
@@ -355,7 +401,18 @@ async def _validate_download_url(url: str) -> None:
         raise ValueError("PDF URL host could not be resolved") from exc
     if not addresses:
         raise ValueError("PDF URL host could not be resolved")
+    return addresses
+
+
+def _ensure_addresses_are_public(addresses: list) -> None:
     for address in addresses:
         ip = ipaddress.ip_address(str(address[4][0]).split("%", 1)[0])
         if not ip.is_global:
             raise ValueError("PDF URL resolves to a non-public address")
+
+
+async def _validate_download_url(url: str) -> None:
+    """Reject local/private destinations before each outbound PDF request."""
+    hostname, port = _resolve_url_host_port(url)
+    addresses = await _resolve_dns_addresses(hostname, port)
+    _ensure_addresses_are_public(addresses)

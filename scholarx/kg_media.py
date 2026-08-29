@@ -51,6 +51,46 @@ def media_store() -> Any | None:
         return None
 
 
+def _extract_paper_metadata(paper: Any | None) -> dict[str, Any]:
+    if paper is None:
+        return {}
+    return paper.model_dump() if hasattr(paper, "model_dump") else dict(paper)
+
+
+def _read_pdf_bytes(file_path: str) -> bytes | None:
+    try:
+        with open(file_path, "rb") as fh:
+            return fh.read()
+    except OSError as e:
+        logger.warning("Operation failed: error_type=%s", type(e).__name__)
+        return None
+
+
+def _build_media_extra(meta: dict[str, Any]) -> dict[str, Any]:
+    extra: dict[str, Any] = {}
+    for key in _META_FIELDS:
+        val = meta.get(key)
+        val = getattr(val, "value", val)  # StrEnum source -> str
+        if val is not None:
+            extra[key] = val
+    return extra
+
+
+def _store_pdf_asset(store: Any, data: bytes, source: str, name: str, extra: dict[str, Any]) -> Any | None:
+    try:
+        return store.store_media(
+            data,
+            media_type="document",
+            mime_type="application/pdf",
+            source=source,
+            name=name,
+            extra=extra,
+        )
+    except Exception as e:  # noqa: BLE001 — engine/store failure is non-fatal
+        logger.warning("scholarx KG media store failed: error_type=%s", type(e).__name__)
+        return None
+
+
 def ingest_pdf(
     file_path: str | None,
     *,
@@ -70,37 +110,16 @@ def ingest_pdf(
     if store is None:
         return None
 
-    meta: dict[str, Any] = {}
-    if paper is not None:
-        meta = paper.model_dump() if hasattr(paper, "model_dump") else dict(paper)
+    meta = _extract_paper_metadata(paper)
 
-    try:
-        with open(file_path, "rb") as fh:
-            data = fh.read()
-    except OSError as e:
-        logger.warning("Operation failed: error_type=%s", type(e).__name__)
+    data = _read_pdf_bytes(file_path)
+    if data is None:
         return None
 
-    extra: dict[str, Any] = {}
-    for key in _META_FIELDS:
-        val = meta.get(key)
-        val = getattr(val, "value", val)  # StrEnum source -> str
-        if val is not None:
-            extra[key] = val
+    extra = _build_media_extra(meta)
     name = meta.get("title") or os.path.basename(file_path)
 
-    try:
-        stored = store.store_media(
-            data,
-            media_type="document",
-            mime_type="application/pdf",
-            source=source,
-            name=name,
-            extra=extra,
-        )
-    except Exception as e:  # noqa: BLE001 — engine/store failure is non-fatal
-        logger.warning("scholarx KG media store failed: error_type=%s", type(e).__name__)
-        return None
+    stored = _store_pdf_asset(store, data, source, name, extra)
     if stored is None:
         return None
 

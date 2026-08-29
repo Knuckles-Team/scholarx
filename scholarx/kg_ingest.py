@@ -88,6 +88,60 @@ def _as_dict(paper: Any) -> dict[str, Any]:
     return dict(paper)
 
 
+def _paper_node(p: dict[str, Any], pid: Any, paper_node_id: str) -> dict[str, Any]:
+    abstract = p.get("abstract") or ""
+    return {
+        "id": paper_node_id,
+        "node_type": "Paper",
+        "name": p.get("title"),
+        "title": p.get("title"),
+        "text": abstract or p.get("title"),
+        "abstract": abstract or None,
+        "doi": p.get("doi"),
+        "url": p.get("url") or None,
+        "pdfUrl": p.get("pdf_url"),
+        "publishedDate": p.get("published_date"),
+        "citationCount": p.get("citation_count"),
+        "externalToolId": str(pid),
+        "source_uri": p.get("url") or None,
+    }
+
+
+def _source_node_and_edge(src: Any, paper_node_id: str) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    if not src:
+        return None
+    source_id = f"scholarx:source:{_slug(str(src))}"
+    node = {"id": source_id, "node_type": "PaperSource", "name": str(src)}
+    edge = {"source": paper_node_id, "target": source_id, "relationship": "publishedInSource"}
+    return node, edge
+
+
+def _category_nodes_and_edges(
+    categories: list[Any] | None, paper_node_id: str
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    pairs = []
+    for cat in categories or []:
+        cat_id = f"scholarx:category:{_slug(str(cat))}"
+        node = {"id": cat_id, "node_type": "ResearchCategory", "name": str(cat)}
+        edge = {"source": paper_node_id, "target": cat_id, "relationship": "hasCategory"}
+        pairs.append((node, edge))
+    return pairs
+
+
+def _author_nodes_and_edges(
+    authors: list[Any] | None, paper_node_id: str
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    pairs = []
+    for author in (authors or [])[:20]:
+        if not author:
+            continue
+        person_id = f"scholarx:person:{_slug(str(author), 80)}"
+        node = {"id": person_id, "node_type": "Person", "name": str(author)}
+        edge = {"source": paper_node_id, "target": person_id, "relationship": "authoredBy"}
+        pairs.append((node, edge))
+    return pairs
+
+
 def paper_entities(
     papers: list[Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -114,41 +168,22 @@ def paper_entities(
         src = p.get("source")
         src = getattr(src, "value", src)  # StrEnum -> str
         paper_node_id = f"scholarx:paper:{_slug(str(pid), 120)}"
-        abstract = p.get("abstract") or ""
-        _add(
-            {
-                "id": paper_node_id,
-                "node_type": "Paper",
-                "name": p.get("title"),
-                "title": p.get("title"),
-                "text": abstract or p.get("title"),
-                "abstract": abstract or None,
-                "doi": p.get("doi"),
-                "url": p.get("url") or None,
-                "pdfUrl": p.get("pdf_url"),
-                "publishedDate": p.get("published_date"),
-                "citationCount": p.get("citation_count"),
-                "externalToolId": str(pid),
-                "source_uri": p.get("url") or None,
-            }
-        )
 
-        if src:
-            source_id = f"scholarx:source:{_slug(str(src))}"
-            _add({"id": source_id, "node_type": "PaperSource", "name": str(src)})
-            relationships.append({"source": paper_node_id, "target": source_id, "relationship": "publishedInSource"})
+        _add(_paper_node(p, pid, paper_node_id))
 
-        for cat in p.get("categories") or []:
-            cat_id = f"scholarx:category:{_slug(str(cat))}"
-            _add({"id": cat_id, "node_type": "ResearchCategory", "name": str(cat)})
-            relationships.append({"source": paper_node_id, "target": cat_id, "relationship": "hasCategory"})
+        source_pair = _source_node_and_edge(src, paper_node_id)
+        if source_pair:
+            source_node, source_edge = source_pair
+            _add(source_node)
+            relationships.append(source_edge)
 
-        for author in (p.get("authors") or [])[:20]:
-            if not author:
-                continue
-            person_id = f"scholarx:person:{_slug(str(author), 80)}"
-            _add({"id": person_id, "node_type": "Person", "name": str(author)})
-            relationships.append({"source": paper_node_id, "target": person_id, "relationship": "authoredBy"})
+        for cat_node, cat_edge in _category_nodes_and_edges(p.get("categories"), paper_node_id):
+            _add(cat_node)
+            relationships.append(cat_edge)
+
+        for person_node, person_edge in _author_nodes_and_edges(p.get("authors"), paper_node_id):
+            _add(person_node)
+            relationships.append(person_edge)
 
     return entities, relationships
 

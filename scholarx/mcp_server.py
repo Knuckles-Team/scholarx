@@ -8,6 +8,7 @@ and storage tools via the standard agent-utilities MCP server factory.
 import asyncio
 import logging
 import sys
+from dataclasses import dataclass
 
 from agent_utilities.core.config import load_config, setting
 from agent_utilities.mcp.action_dispatch import resolve_action
@@ -67,6 +68,101 @@ def _auto_ingest_papers(papers) -> None:
         logger.debug("Operation failed: error_type=%s", type(e).__name__)
 
 
+def _parse_comma_list(value: str) -> list[str]:
+    """Split a comma-separated string into trimmed, non-empty parts (`""` -> `[]`)."""
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+
+def _parse_source_list(sources: str) -> list:
+    from scholarx.models import PaperSource
+
+    return [PaperSource(s) for s in _parse_comma_list(sources)]
+
+
+async def _handle_sx_search_get(client, sources: str, paper_id: str, ctx) -> dict:
+    if not sources or not paper_id:
+        return {"error": "Both 'sources' and 'paper_id' required for 'get' action"}
+    from scholarx.models import PaperSource
+
+    if ctx:
+        await ctx.report_progress(10, 100)
+    # Use the first provided source for a direct get
+    paper = await client.get_paper(PaperSource(sources.split(",")[0].strip()), paper_id)
+    if ctx:
+        await ctx.report_progress(100, 100)
+    return (
+        paper.model_dump(exclude={"normalized_title", "normalized_authors"})
+        if paper
+        else {"error": "Paper not found"}
+    )
+
+
+async def _handle_sx_search_author(client, author: str, max_results: int) -> dict:
+    if not author:
+        return {"error": "'author' is required for 'author' action"}
+    from scholarx.models import SearchQuery
+
+    sq = SearchQuery(query=author, author=author, max_results=max_results)
+    result = await client.search(sq)
+    return {
+        "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
+        "total_count": result.total_count,
+    }
+
+
+async def _handle_sx_search_recent(client, cat_list: list[str], days: int, source_list: list) -> dict:
+    if not cat_list:
+        cat_list = ["cs.AI", "cs.MA", "cs.SE", "cs.LG"]
+    srcs = source_list if source_list else None
+    result = await client.get_recent_papers(cat_list, days, srcs)
+    return {
+        "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
+        "total_count": result.total_count,
+        "sources_queried": [s.value for s in result.sources_queried],
+    }
+
+
+@dataclass
+class _SxSearchArgs:
+    """The default ('search') action's query parameters, bundled so the
+    handler stays under the 7-parameter cap."""
+
+    query: str
+    source_list: list
+    cat_list: list[str]
+    max_results: int
+    sort_by: str
+    title: str
+    paper_id: str
+
+
+async def _handle_sx_search_default(client, args: _SxSearchArgs, ctx) -> dict:
+    from scholarx.models import SearchQuery
+
+    id_list = [i.strip() for i in args.paper_id.split(",") if i.strip()] if args.paper_id else None
+    sq = SearchQuery(
+        query=args.query,
+        sources=args.source_list,
+        categories=args.cat_list,
+        max_results=args.max_results,
+        sort_by=args.sort_by,
+        title=args.title if args.title else None,
+        paper_ids=id_list,
+    )
+    if ctx:
+        await ctx.report_progress(10, 100)
+    result = await client.search(sq)
+    if ctx:
+        await ctx.report_progress(100, 100)
+    _auto_ingest_papers(result.papers)
+    return {
+        "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
+        "total_count": result.total_count,
+        "sources_queried": [s.value for s in result.sources_queried],
+        "deduplicated_count": result.deduplicated_count,
+    }
+
+
 # ── Tool Registration Functions ─────────────────────────────────────────────
 
 
@@ -98,76 +194,35 @@ def register_search_tools(mcp):
         ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
         """Search for research papers across all configured sources."""
-        from scholarx.models import PaperSource, SearchQuery
-
         resolved = resolve_action(action, SEARCH_ACTIONS, service="scholarx")
         if isinstance(resolved, dict):
             return resolved
         action = resolved
 
         client = _get_client()
-        source_list = [PaperSource(s.strip()) for s in sources.split(",") if s.strip()] if sources else []
-        cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else []
+        source_list = _parse_source_list(sources)
+        cat_list = _parse_comma_list(categories)
 
         if action == "get":
-            if not sources or not paper_id:
-                return {"error": "Both 'sources' and 'paper_id' required for 'get' action"}
-            if ctx:
-                await ctx.report_progress(10, 100)
-            # Use the first provided source for a direct get
-            paper = await client.get_paper(PaperSource(sources.split(",")[0].strip()), paper_id)
-            if ctx:
-                await ctx.report_progress(100, 100)
-            return (
-                paper.model_dump(exclude={"normalized_title", "normalized_authors"})
-                if paper
-                else {"error": "Paper not found"}
-            )
-
+            return await _handle_sx_search_get(client, sources, paper_id, ctx)
         if action == "author":
-            if not author:
-                return {"error": "'author' is required for 'author' action"}
-            sq = SearchQuery(query=author, author=author, max_results=max_results)
-            result = await client.search(sq)
-            return {
-                "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
-                "total_count": result.total_count,
-            }
-
+            return await _handle_sx_search_author(client, author, max_results)
         if action == "recent":
-            if not cat_list:
-                cat_list = ["cs.AI", "cs.MA", "cs.SE", "cs.LG"]
-            srcs = source_list if source_list else None
-            result = await client.get_recent_papers(cat_list, days, srcs)
-            return {
-                "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
-                "total_count": result.total_count,
-                "sources_queried": [s.value for s in result.sources_queried],
-            }
+            return await _handle_sx_search_recent(client, cat_list, days, source_list)
 
-        # Default action: search
-        id_list = [i.strip() for i in paper_id.split(",") if i.strip()] if paper_id else None
-        sq = SearchQuery(
-            query=query,
-            sources=source_list,
-            categories=cat_list,
-            max_results=max_results,
-            sort_by=sort_by,
-            title=title if title else None,
-            paper_ids=id_list,
+        return await _handle_sx_search_default(
+            client,
+            _SxSearchArgs(
+                query=query,
+                source_list=source_list,
+                cat_list=cat_list,
+                max_results=max_results,
+                sort_by=sort_by,
+                title=title,
+                paper_id=paper_id,
+            ),
+            ctx,
         )
-        if ctx:
-            await ctx.report_progress(10, 100)
-        result = await client.search(sq)
-        if ctx:
-            await ctx.report_progress(100, 100)
-        _auto_ingest_papers(result.papers)
-        return {
-            "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
-            "total_count": result.total_count,
-            "sources_queried": [s.value for s in result.sources_queried],
-            "deduplicated_count": result.deduplicated_count,
-        }
 
 
 def register_discovery_tools(mcp):

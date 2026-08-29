@@ -16,6 +16,55 @@ from .base import PaperProvider
 logger = logging.getLogger(__name__)
 
 
+def _find_article_id(article: dict, id_type: str) -> str | None:
+    """Return the first articleid value of `id_type` (e.g. "doi", "pmc")."""
+    for aid in article.get("articleids", []):
+        if aid.get("idtype") == id_type:
+            return aid.get("value")
+    return None
+
+
+def _extract_article_authors(article: dict) -> list[str]:
+    authors = []
+    for author in article.get("authors", []):
+        name = author.get("name", "")
+        if name:
+            authors.append(name)
+    return authors
+
+
+def _parse_pmc_article(pmid: str, article: dict) -> Paper | None:
+    """Parse one esummary result article into a Paper, or None if unusable."""
+    if not article or not isinstance(article, dict):
+        return None
+    title = article.get("title", "").strip()
+    if not title:
+        return None
+
+    authors = _extract_article_authors(article)
+    doi = _find_article_id(article, "doi")
+    pmc_id = _find_article_id(article, "pmc")
+
+    pub_date = article.get("pubdate", "")
+    pub_date_clean = pub_date[:10] if pub_date else None
+
+    pdf_url = f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmc_id}/pdf/" if pmc_id else None
+
+    return Paper(
+        id=f"pmid:{pmid}",
+        source=PaperSource.PMC,
+        title=title,
+        authors=authors,
+        abstract="",  # esummary doesn't include abstract
+        categories=[],
+        published_date=pub_date_clean,
+        doi=doi,
+        url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+        pdf_url=pdf_url,
+        metadata={"pmid": pmid, "pmc_id": pmc_id},
+    )
+
+
 class PMCProvider(PaperProvider):
     """PubMed Central provider using NCBI E-utilities."""
 
@@ -131,57 +180,9 @@ class PMCProvider(PaperProvider):
 
             papers = []
             for pmid in id_list:
-                article = result.get(pmid, {})
-                if not article or not isinstance(article, dict):
-                    continue
-
-                title = article.get("title", "").strip()
-                if not title:
-                    continue
-
-                # Extract authors
-                authors = []
-                for author in article.get("authors", []):
-                    name = author.get("name", "")
-                    if name:
-                        authors.append(name)
-
-                # Extract DOI from article IDs
-                doi = None
-                for aid in article.get("articleids", []):
-                    if aid.get("idtype") == "doi":
-                        doi = aid.get("value")
-                        break
-
-                # PMC ID
-                pmc_id = None
-                for aid in article.get("articleids", []):
-                    if aid.get("idtype") == "pmc":
-                        pmc_id = aid.get("value")
-                        break
-
-                pub_date = article.get("pubdate", "")
-                pub_date_clean = pub_date[:10] if pub_date else None
-
-                pdf_url = None
-                if pmc_id:
-                    pdf_url = f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmc_id}/pdf/"
-
-                papers.append(
-                    Paper(
-                        id=f"pmid:{pmid}",
-                        source=PaperSource.PMC,
-                        title=title,
-                        authors=authors,
-                        abstract="",  # esummary doesn't include abstract
-                        categories=[],
-                        published_date=pub_date_clean,
-                        doi=doi,
-                        url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
-                        pdf_url=pdf_url,
-                        metadata={"pmid": pmid, "pmc_id": pmc_id},
-                    )
-                )
+                paper = _parse_pmc_article(pmid, result.get(pmid, {}))
+                if paper is not None:
+                    papers.append(paper)
 
             return papers
         except Exception as e:
