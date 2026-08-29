@@ -17,6 +17,34 @@ logger = logging.getLogger(__name__)
 _FIELDS = "paperId,externalIds,title,abstract,authors,year,citationCount,referenceCount,url,openAccessPdf,fieldsOfStudy,publicationDate"
 
 
+def _extract_s2_authors(item: dict) -> list[str]:
+    return [a.get("name", "") for a in (item.get("authors") or []) if a.get("name")]
+
+
+def _build_s2_paper(item: dict, title: str) -> Paper:
+    paper_id = item.get("paperId", "")
+    ext_ids = item.get("externalIds", {}) or {}
+    authors = _extract_s2_authors(item)
+    fields = item.get("fieldsOfStudy") or []
+    oap = item.get("openAccessPdf") or {}
+    pub_date = item.get("publicationDate")
+    return Paper(
+        id=f"s2:{paper_id}",
+        source=PaperSource.SEMANTIC_SCHOLAR,
+        title=title,
+        authors=authors,
+        abstract=item.get("abstract") or "",
+        categories=fields,
+        published_date=pub_date,
+        doi=ext_ids.get("DOI"),
+        url=item.get("url") or f"https://www.semanticscholar.org/paper/{paper_id}",
+        pdf_url=oap.get("url"),
+        citation_count=item.get("citationCount"),
+        reference_count=item.get("referenceCount"),
+        metadata={"s2_id": paper_id, "arxiv_id": ext_ids.get("ArXiv"), "pmid": ext_ids.get("PubMed")},
+    )
+
+
 class SemanticScholarProvider(PaperProvider):
     """Semantic Scholar provider using the Academic Graph API."""
 
@@ -73,24 +101,4 @@ class SemanticScholarProvider(PaperProvider):
         title = (item.get("title") or "").strip()
         if not title:
             return None
-        paper_id = item.get("paperId", "")
-        ext_ids = item.get("externalIds", {}) or {}
-        authors = [a.get("name", "") for a in (item.get("authors") or []) if a.get("name")]
-        fields = item.get("fieldsOfStudy") or []
-        oap = item.get("openAccessPdf") or {}
-        pub_date = item.get("publicationDate")
-        return Paper(
-            id=f"s2:{paper_id}",
-            source=PaperSource.SEMANTIC_SCHOLAR,
-            title=title,
-            authors=authors,
-            abstract=item.get("abstract") or "",
-            categories=fields,
-            published_date=pub_date,
-            doi=ext_ids.get("DOI"),
-            url=item.get("url") or f"https://www.semanticscholar.org/paper/{paper_id}",
-            pdf_url=oap.get("url"),
-            citation_count=item.get("citationCount"),
-            reference_count=item.get("referenceCount"),
-            metadata={"s2_id": paper_id, "arxiv_id": ext_ids.get("ArXiv"), "pmid": ext_ids.get("PubMed")},
-        )
+        return _build_s2_paper(item, title)
