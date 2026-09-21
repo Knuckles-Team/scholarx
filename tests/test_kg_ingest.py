@@ -14,7 +14,7 @@ import msgpack
 import pytest
 from agent_utilities.knowledge_graph.memory.native_ingest import NativeIngestError
 from agent_utilities.security.brain_context import ActorContext, use_actor
-from agent_utilities.models.company_brain import ActorType
+from agent_utilities.security.actor_identity import ActorType
 from agent_utilities.knowledge_graph.core.session import GraphSession, use_session
 
 from scholarx.kg_ingest import ingest_documents, ingest_entities, ingest_papers, paper_entities
