@@ -1,3 +1,5 @@
+from typing import Literal
+
 #!/usr/bin/python
 """ScholarX MCP Server.
 
@@ -91,9 +93,7 @@ async def _handle_sx_search_get(client, sources: str, paper_id: str, ctx) -> dic
     if ctx:
         await ctx.report_progress(100, 100)
     return (
-        paper.model_dump(exclude={"normalized_title", "normalized_authors"})
-        if paper
-        else {"error": "Paper not found"}
+        paper.model_dump(exclude={"normalized_title", "normalized_authors"}) if paper else {"error": "Paper not found"}
     )
 
 
@@ -174,7 +174,7 @@ def register_search_tools(mcp):
         annotations={"readOnlyHint": True, "openWorldHint": True},
     )
     async def sx_search(
-        action: str = Field(
+        action: Literal["author", "get", "recent", "search"] = Field(
             description="Action: 'search', 'get', 'author', 'recent'. Use 'list_actions' to discover all."
         ),
         query: str = Field(default="", description="Search query string"),

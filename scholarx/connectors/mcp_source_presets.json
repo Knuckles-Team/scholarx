@@ -9,6 +9,7 @@
     "title_field": "title",
     "text_field": "abstract",
     "updated_field": "published_date",
-    "doc_type": "research_paper"
+    "doc_type": "research_paper",
+    "params_style": "args"
   }
 }

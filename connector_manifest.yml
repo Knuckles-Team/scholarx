@@ -100,7 +100,7 @@ sync:
   updated_field: published_date
   pagination: null
   doc_type: research_paper
-  tool_schema_sha256: 60226a567d4e8c45a92faa315e608383e16ba4dc5de9a6db610783ba885c30ca
+  tool_schema_sha256: c7002b07e69c3019bbdc98b068b5f7ed55704e80d0138b19edb58e8f21df119b
   raw:
     server: scholarx-mcp
     tool: sx_search
@@ -111,6 +111,7 @@ sync:
     text_field: abstract
     updated_field: published_date
     doc_type: research_paper
+    params_style: args
 provenance:
   generated_by: scripts/generate_connector_manifests.py
   generated_at: '2026-08-26T13:42:55Z'
