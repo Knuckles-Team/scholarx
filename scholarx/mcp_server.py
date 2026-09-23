@@ -172,6 +172,7 @@ def register_search_tools(mcp):
     @mcp.tool(
         tags={"search"},
         annotations={"readOnlyHint": True, "openWorldHint": True},
+        meta={"eg.annotations": {"modalities_in": ["text"], "modalities_out": ["text"]}},
     )
     async def sx_search(
         action: Literal["author", "get", "recent", "search"] = Field(
