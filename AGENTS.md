@@ -19,7 +19,6 @@
     - `cli.py`: Rich CLI with progress bars for scan/status commands (CONCEPT:SX-OS.config.sx).
     - `mcp_server.py`: MCP server entry point with tools across 3 tag groups (search, discovery, storage).
     - `queue.py`: Background download queue with job tracking and status reporting.
-    - `agent_server.py`: Graph agent server for autonomous operation.
     - `api_client.py`: Unified client — fan-out to all providers, dedup, merge.
     - `providers/`: One module per paper source (arXiv, PMC, bioRxiv, OSF, S2).
     - `kg_integration.py`: Bridges papers into existing KG via KBIngestionEngine.
@@ -83,7 +82,6 @@ scholarx status                                 # Show stored paper library
 # Entry Points
 # scholarx       → scholarx.cli:cli
 # scholarx-mcp   → scholarx.mcp_server:mcp_server
-# scholarx-agent → scholarx.agent_server:agent_server
 
 # Testing
 pytest tests/ -v
@@ -91,7 +89,6 @@ pytest tests/ -v
 
 ## Project Structure Quick Reference
 - MCP Entry Point → `mcp_server.py`
-- Agent Entry Point → `agent_server.py`
 - Unified Client → `api_client.py`
 - Provider Layer → `providers/`
 - Background Queue → `queue.py`
@@ -114,7 +111,6 @@ scholarx/
 ├── paper_storage.py          # Full PDF download + local storage with dedup (CONCEPT:SX-OS.config.sx-4)
 ├── kg_integration.py         # ScholarXKGBridge → KBIngestionEngine
 ├── mcp_server.py             # MCP tools (search, discovery, storage) + 2 analysis prompts
-├── agent_server.py           # Graph agent server
 ├── main_agent.json           # Agent identity
 ├── mcp_config.json           # MCP client config
 └── providers/
@@ -128,7 +124,7 @@ scholarx/
 
 ## Code Style & Conventions
 **Always:**
-- Use `agent-utilities` for common patterns (e.g., `create_mcp_server`, `create_graph_agent_server`).
+- Use `agent-utilities` for common patterns (e.g., `create_mcp_server`).
 - Define models using Pydantic with descriptive docstrings.
 - Use per-source rate limiting via the `PaperProvider` base class.
 - Lazy-import agent-utilities KG types inside functions (they're optional deps).

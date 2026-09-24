@@ -161,62 +161,6 @@ docker compose -f docker/mcp.compose.yml up -d
 docker compose -f docker/mcp.compose.yml logs -f
 ```
 
-## Run the agent server
-
-`scholarx` also publishes a Pydantic-AI graph agent as the `scholarx-agent` console
-script. The agent connects to a running MCP server over HTTP (`MCP_URL`) and exposes
-the Agent Control Protocol plus the Agent Web UI on its own port (`9600` by default).
-
-```bash
-# Start the MCP server first (streamable-http), then the agent against it
-export MCP_URL=http://localhost:8004/mcp
-scholarx-agent --provider openai --model-id gpt-4o
-```
-
-The repo ships [`docker/agent.compose.yml`](https://github.com/Knuckles-Team/scholarx/blob/main/docker/agent.compose.yml),
-which deploys the MCP server and the agent together and wires `MCP_URL` between them:
-
-```yaml
-services:
-  scholarx-mcp:
-    image: example/scholarx@sha256:<digest>
-    container_name: scholarx-mcp
-    hostname: scholarx-mcp
-    restart: always
-    env_file:
-      - ../.env
-    environment:
-      - HOST=0.0.0.0
-      - PORT=8004
-      - TRANSPORT=streamable-http
-    ports:
-      - "8004:8004"
-
-  scholarx-agent:
-    image: example/scholarx@sha256:<digest>
-    container_name: scholarx-agent
-    hostname: scholarx-agent
-    restart: always
-    depends_on:
-      - scholarx-mcp
-    env_file:
-      - ../.env
-    command: ["scholarx-agent"]
-    environment:
-      - HOST=0.0.0.0
-      - PORT=9600
-      - MCP_URL=http://scholarx-mcp:8004/mcp
-      - PROVIDER=${PROVIDER:-openai}
-      - MODEL_ID=${MODEL_ID:-gpt-4o}
-      - ENABLE_WEB_UI=True
-    ports:
-      - "9600:9600"
-```
-
-```bash
-docker compose -f docker/agent.compose.yml up -d
-```
-
 ## Behind a Caddy reverse proxy
 
 Expose the HTTP server on a hostname with automatic TLS. Add to your `Caddyfile`:

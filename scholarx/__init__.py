@@ -8,7 +8,7 @@ __all__: list[str] = []
 
 CORE_MODULES: list[str] = ["scholarx.models", "scholarx.api_client", "scholarx.deduplication", "scholarx.paper_storage"]
 
-OPTIONAL_MODULES = {"scholarx.agent_server": "agent_server", "scholarx.mcp_server": "mcp_server"}
+OPTIONAL_MODULES = {"scholarx.mcp_server": "mcp_server"}
 
 
 def _expose_members(module):
@@ -26,7 +26,7 @@ for module_name in CORE_MODULES:
         module = importlib.import_module(module_name)
         _expose_members(module)
 
-# Dynamic/lazy loading of optional modules (agent_server, mcp_server)
+# Dynamic/lazy loading of optional modules (mcp_server)
 _loaded_optional_modules: dict[str, Any] = {}
 
 
