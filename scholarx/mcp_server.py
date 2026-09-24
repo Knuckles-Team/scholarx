@@ -12,9 +12,9 @@ import logging
 import sys
 from dataclasses import dataclass
 
-from agent_utilities.core.config import load_config, setting
-from agent_utilities.mcp.action_dispatch import resolve_action
-from agent_utilities.mcp.concurrency import run_blocking
+from agent_connector_sdk.config import load_config, setting
+from agent_connector_sdk.mcp.action_dispatch import resolve_action
+from agent_connector_sdk.mcp.concurrency import run_blocking
 from agent_utilities.mcp.verbose_tools import register_tool_surface
 from fastmcp import Context
 from pydantic import Field
@@ -579,7 +579,7 @@ def register_prompts(mcp):
 
 def get_mcp_instance():
     """Create and configure the MCP server instance."""
-    from agent_utilities.mcp.server_factory import create_mcp_server
+    from agent_connector_sdk.mcp.server import create_mcp_server
 
     args, mcp, middlewares = create_mcp_server(
         name="ScholarX MCP",

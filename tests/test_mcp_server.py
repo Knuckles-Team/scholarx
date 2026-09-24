@@ -627,7 +627,7 @@ def test_prompts():
 
 @pytest.mark.concept("SX-1.0")
 def test_get_mcp_instance():
-    with patch("agent_utilities.mcp.server_factory.create_mcp_server", return_value=(MagicMock(), MagicMock(), [])):
+    with patch("agent_connector_sdk.mcp.server.create_mcp_server", return_value=(MagicMock(), MagicMock(), [])):
         args, mcp = get_mcp_instance()
         assert args is not None
         assert mcp is not None
