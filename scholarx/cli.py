@@ -522,7 +522,9 @@ def _render_paper_markdown(sp: dict[str, Any]) -> str:
     score_data = sp["score"]
     content = f"# {paper.title}\n\n"
     content += f"**Relevance Score:** {score_data['total_score']} ({score_data['verdict']})\n"
-    content += f"**Domains Matched:** {', '.join(score_data['domain_hits'].keys()) if score_data['domain_hits'] else 'none'}\n"
+    content += (
+        f"**Domains Matched:** {', '.join(score_data['domain_hits'].keys()) if score_data['domain_hits'] else 'none'}\n"
+    )
     content += f"**Source:** {paper.source.value}\n"
     content += f"**ID:** {paper.id}\n"
     content += f"**Published:** {paper.published_date}\n"
@@ -880,7 +882,9 @@ def _print_auto_analysis_header(paper_mds: list[Path], targets: list[Path], extr
     )
 
 
-def _extract_innovations_for_target(paper_md: Path, target: Path, innovations_dir: Path, extractor: Path) -> dict | None:
+def _extract_innovations_for_target(
+    paper_md: Path, target: Path, innovations_dir: Path, extractor: Path
+) -> dict | None:
     """Run the extractor for one (paper, target) pair and return its
     `{"paper", "target", "innovations"}` entry, or None if nothing usable came back."""
     out_file = innovations_dir / f"{paper_md.stem}_{target.name}_innovations.json"

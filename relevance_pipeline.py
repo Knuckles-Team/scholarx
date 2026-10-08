@@ -373,7 +373,9 @@ def _display_scored_papers(scored_papers: list[dict]) -> tuple[list[dict], list[
     return relevant, marginal, irrelevant
 
 
-def _print_partition_summary(relevant: list[dict], marginal: list[dict], irrelevant: list[dict], accepted: list[dict]) -> None:
+def _print_partition_summary(
+    relevant: list[dict], marginal: list[dict], irrelevant: list[dict], accepted: list[dict]
+) -> None:
     print(f"\n{'─' * 70}", file=sys.stderr)
     print(f"  ✅ Relevant:   {len(relevant)} papers (score ≥ 3.0)", file=sys.stderr)
     print(f"  🟡 Marginal:   {len(marginal)} papers (score 1.0-2.9)", file=sys.stderr)
@@ -437,7 +439,9 @@ def _write_batch_accepted_markdowns(output_dir: Path, accepted: list[dict]) -> N
         paper_file.write_text(_render_batch_paper_markdown(sp))
 
 
-def _write_batch_outputs(output_dir: Path, scored_papers: list[dict], accepted: list[dict], irrelevant: list[dict]) -> None:
+def _write_batch_outputs(
+    output_dir: Path, scored_papers: list[dict], accepted: list[dict], irrelevant: list[dict]
+) -> None:
     scoring_summary = _build_batch_scoring_summary(scored_papers, accepted, irrelevant)
     summary_path = output_dir / "relevance_scores.json"
     summary_path.write_text(json.dumps(scoring_summary, indent=2))
@@ -451,7 +455,9 @@ def _write_batch_outputs(output_dir: Path, scored_papers: list[dict], accepted: 
     meta_path.write_text(json.dumps(accepted_meta, indent=2, default=str))
 
 
-def _print_pipeline_summary(scored_papers: list[dict], accepted: list[dict], irrelevant: list[dict], downloaded: int) -> None:
+def _print_pipeline_summary(
+    scored_papers: list[dict], accepted: list[dict], irrelevant: list[dict], downloaded: int
+) -> None:
     print(f"\n{'=' * 70}", file=sys.stderr)
     print("✅ Pipeline complete!", file=sys.stderr)
     print(f"   Papers fetched:  {len(scored_papers)}", file=sys.stderr)

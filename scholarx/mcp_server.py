@@ -91,9 +91,7 @@ async def _handle_sx_search_get(client, sources: str, paper_id: str, ctx) -> dic
     if ctx:
         await ctx.report_progress(100, 100)
     return (
-        paper.model_dump(exclude={"normalized_title", "normalized_authors"})
-        if paper
-        else {"error": "Paper not found"}
+        paper.model_dump(exclude={"normalized_title", "normalized_authors"}) if paper else {"error": "Paper not found"}
     )
 
 
