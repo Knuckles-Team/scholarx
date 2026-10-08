@@ -88,9 +88,7 @@ def _match_by_cross_id(cross_ids: set[str], cross_id_index: dict[str, int]) -> i
     return None
 
 
-def _match_by_fuzzy_title(
-    title_index: list[tuple[str, str, int]], paper: Paper, threshold: float
-) -> int | None:
+def _match_by_fuzzy_title(title_index: list[tuple[str, str, int]], paper: Paper, threshold: float) -> int | None:
     first_author = _first_author_last_name(paper)
     for existing_title, existing_author, existing_idx in title_index:
         if first_author and existing_author and first_author != existing_author:
