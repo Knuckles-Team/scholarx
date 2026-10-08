@@ -1,6 +1,6 @@
 # ScholarX Pytest Coverage Analysis & Remediation Report
 
-This report provides a comprehensive analysis of the overall code coverage in `scholarx`, maps specific testing gaps, and outlines highly actionable opportunities and code patterns to achieve the **100% test coverage North Star goal**.
+This report provides a complete analysis of the overall code coverage in `scholarx`, maps specific testing gaps, and outlines highly actionable opportunities and code patterns to achieve the **100% test coverage North Star goal**.
 
 ---
 
@@ -85,12 +85,12 @@ graph TD
 
 ## 🛠️ Step-by-Step Remediation Plan
 
-To achieve the North Star goal of 100% test coverage, we have designed highly optimized unit test suites for each under-tested module. These tests utilize fixtures, `pytest-asyncio`, `respx` for network mocking, and `unittest.mock` for dependency isolation.
+To achieve the North Star goal of 100% test coverage, this repository have designed highly optimized unit test suites for each under-tested module. These tests use fixtures, `pytest-asyncio`, `respx` for network mocking, and `unittest.mock` for dependency isolation.
 
 ### Component 1: `scholarx/paper_storage.py` (Current: 24% Coverage)
 
 **Gaps**: Untested async file writes, status validation, directory scans, and JSON metadata logs.
-**Solution**: Create `tests/test_paper_storage.py` utilizing a dynamic temporary directory and mock client.
+**Solution**: Create `tests/test_paper_storage.py` use a dynamic temporary directory and mock client.
 
 ```python
 import json
@@ -158,7 +158,7 @@ async def test_list_stored_papers(temp_storage):
 ### Component 2: `scholarx/queue.py` (Current: 0% Coverage)
 
 **Gaps**: Background worker loop, lock primitives, dynamic queue management, and concurrent task synchronization.
-**Solution**: Create `tests/test_queue.py` using short-delay tests to verify daemon threads.
+**Solution**: Create `tests/test_queue.py` using short-delay tests to check daemon threads.
 
 ```python
 import time
@@ -332,7 +332,7 @@ async def test_biorxiv_provider_search():
 ### Component 6: `scholarx/cli.py` & Startup routing (Current: 27% Coverage)
 
 **Gaps**: Subprocess wrapper execution, system prompt parser arguments, status routers.
-**Solution**: Leverage `pytest` fixtures for system outputs and argument configurations.
+**Solution**: Use `pytest` fixtures for system outputs and argument configurations.
 
 ```python
 import pytest
@@ -356,8 +356,8 @@ def test_cli_argument_routing():
 ### Action Items for Fast Remediation
 
 1. **Prioritize 0% Modules first**: Implement `tests/test_queue.py`, `tests/test_kg_integration.py`, and `tests/test_mcp_server.py`. These files have the highest potential to jump-start coverage by **~30%**.
-2. **Implement Respx HTTP Provider Tests**: Leverage the mock templates shown above to implement mock test runs for `biorxiv.py`, `arxiv.py`, `pmc.py`, `osf.py`, `rss.py`, and `semantic_scholar.py`.
-3. **Execute coverage tracking during test runs**: Use the following CLI arguments to continuously verify improvement:
+2. **Implement Respx HTTP Provider Tests**: Use the mock templates shown above to implement mock test runs for `biorxiv.py`, `arxiv.py`, `pmc.py`, `osf.py`, `rss.py`, and `semantic_scholar.py`.
+3. **Ran coverage tracking during test runs**: Use the following CLI arguments to continuously check improvement:
    ```bash
    uv run pytest --cov=scholarx --cov-report=term-missing
    ```

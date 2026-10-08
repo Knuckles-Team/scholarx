@@ -1,13 +1,13 @@
 # Usage — MCP / API / CLI
 
 `scholarx` exposes the same capability three ways: as **MCP tools** an agent calls, as
-a **Python API** (`ScholarXClient`) you import, and as a **CLI**. The full tool surface
+a **Python API** (`ScholarXClient`) the operator import, and as a **CLI**. The full tool surface
 and ecosystem role are described in [Overview](overview.md).
 
 ## As an MCP server
 
 Once [deployed](deployment.md), the server registers three action-routed tool modules.
-Each is togglable so you can keep the surface compact for an LLM context.
+Each is togglable so the operator can keep the surface compact for an LLM context.
 
 | Module | Toggle | Actions |
 |---|---|---|
