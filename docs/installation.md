@@ -1,7 +1,7 @@
 # Installation
 
 `scholarx` is a standard Python package and a prebuilt container image. Pick the path
-that matches how you want to run it.
+that matches how the operator want to run it.
 
 ## Requirements
 
@@ -19,7 +19,7 @@ pip install scholarx
 ### Optional extras
 
 The base install ships the `ScholarXClient` API and the `scholarx` CLI. Install the
-extra for the surface you need:
+extra for the surface the operator need:
 
 | Extra | Install | Pulls in |
 |---|---|---|

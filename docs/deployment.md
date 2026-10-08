@@ -80,7 +80,7 @@ The transport is selected with `--transport` (or the `TRANSPORT` env var):
     ```bash
     scholarx-mcp
     ```
-    For IDE / desktop MCP clients that launch the server as a subprocess.
+    For IDE / desktop MCP clients that start the server as a subprocess.
 
 === "streamable-http"
 
@@ -125,7 +125,7 @@ Each paper source remains usable with no credentials, and the authenticated sour
 remain inactive when credentials are absent. The full set, with telemetry and Eunomia
 governance options, is documented in
 [`.env.example`](https://github.com/Knuckles-Team/scholarx/blob/main/.env.example).
-Copy it to `.env` and populate only what you use.
+Copy it to `.env` and populate only what the operator use.
 
 ## Docker Compose
 
@@ -219,7 +219,7 @@ docker compose -f docker/agent.compose.yml up -d
 
 ## Behind a Caddy reverse proxy
 
-Expose the HTTP server on a hostname with automatic TLS. Add to your `Caddyfile`:
+Expose the HTTP server on a hostname with automatic TLS. Add to the operator's `Caddyfile`:
 
 ```caddy
 # Internal (self-signed) — homelab .example.invalid zone
@@ -264,7 +264,7 @@ this as a tool.
 
 ## Register with an MCP client
 
-Add to your client's `mcp_config.json` (multiplexer nickname `sx`):
+Add to the operator's client's `mcp_config.json` (multiplexer nickname `sx`):
 
 ```json
 {

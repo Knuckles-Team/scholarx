@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`api_client.py`** — Expanded with queue management methods and updated `download_paper` docstring for clarity.
 
 ### Removed
-- **`scanner.py`** — Deleted the monolithic `RelevanceScanner` module. Functionality replaced by the agentic `research-scanner` skill workflow using `dynamic_scorer.py`.
+- **`scanner.py`** — Removed the monolithic `RelevanceScanner` module. Feature replaced by the agentic `research-scanner` skill workflow using `dynamic_scorer.py`.
 - **`SCANNERTOOL` toggle** — Removed the `SCANNERTOOL` environment variable and `register_scanner_tools` from MCP server initialization.
 
 ### Fixed

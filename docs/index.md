@@ -36,7 +36,7 @@ is collapsed into one record.
 
 <div class="grid cards" markdown>
 
-- :material-rocket-launch: **[Installation](installation.md)** — pip, source, extras, and the prebuilt Docker image.
+- :material-rocket-start: **[Installation](installation.md)** — pip, source, extras, and the prebuilt Docker image.
 - :material-server-network: **[Deployment](deployment.md)** — run the MCP server and the agent, Docker Compose, Caddy + Technitium.
 - :material-console: **[Usage](usage.md)** — the MCP tools, the `ScholarXClient` API, and the `scholarx` CLI.
 - :material-sitemap: **[Overview](overview.md)** — ecosystem role, enterprise readiness, and architecture.
