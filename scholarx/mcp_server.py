@@ -10,10 +10,10 @@ import logging
 import sys
 from dataclasses import dataclass
 
-from agent_utilities.core.config import load_config, setting
-from agent_utilities.mcp.action_dispatch import resolve_action
-from agent_utilities.mcp.concurrency import run_blocking
-from agent_utilities.mcp.verbose_tools import register_tool_surface
+from agent_connector_sdk.config import load_config, setting
+from agent_connector_sdk.mcp.action_dispatch import resolve_action
+from agent_connector_sdk.mcp.concurrency import run_blocking
+from agent_connector_sdk.mcp.tool_surface import register_tool_surface
 from fastmcp import Context
 from pydantic import Field
 
@@ -58,12 +58,12 @@ def _get_client():
     return _client
 
 
-def _auto_ingest_papers(papers) -> None:
+async def _auto_ingest_papers(papers) -> None:
     """Best-effort native ingestion of papers as typed KG nodes. No-ops without an engine."""
     try:
         from scholarx.kg_ingest import ingest_papers
 
-        ingest_papers(papers)
+        await ingest_papers(papers)
     except Exception as e:  # noqa: BLE001 — KG ingestion is never fatal to a search
         logger.debug("Operation failed: error_type=%s", type(e).__name__)
 
@@ -154,7 +154,7 @@ async def _handle_sx_search_default(client, args: _SxSearchArgs, ctx) -> dict:
     result = await client.search(sq)
     if ctx:
         await ctx.report_progress(100, 100)
-    _auto_ingest_papers(result.papers)
+    await _auto_ingest_papers(result.papers)
     return {
         "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in result.papers],
         "total_count": result.total_count,
@@ -535,7 +535,7 @@ def register_kg_tools(mcp):
         if ctx:
             await ctx.report_progress(10, 100)
         result = await client.search(sq)
-        ingested = await run_blocking(ingest_papers, result.papers)
+        ingested = await ingest_papers(result.papers)
         if ctx:
             await ctx.report_progress(100, 100)
         return {"fetched": len(result.papers), "ingested": ingested}
@@ -578,7 +578,7 @@ def register_prompts(mcp):
 
 def get_mcp_instance():
     """Create and configure the MCP server instance."""
-    from agent_utilities.mcp.server_factory import create_mcp_server
+    from agent_connector_sdk.mcp.server import create_mcp_server
 
     args, mcp, middlewares = create_mcp_server(
         name="ScholarX MCP",
