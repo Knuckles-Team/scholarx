@@ -1,112 +1,45 @@
 """Native epistemic-graph typed-node ingestion — Wire-First coverage.
 
 Exercises the real ``ingest_entities`` / ``ingest_documents`` / ``ingest_papers`` seam with a
-fake engine client (no engine required), asserting the single-transaction node/edge staging and commit and the
-ScholarX Paper -> :Paper/:PaperSource/:ResearchCategory/:Person mapping.
-CONCEPT:AU-KG.ingest.enterprise-source-extractor.
+fake SDK ingest **transport** (one level below the facade, per
+FLEET-SDK-MIGRATION-RECIPE.md §2b) — no engine required — asserting the records/relationships
+the SDK's own request builder produces and the ScholarX Paper -> :Paper/:PaperSource/
+:ResearchCategory/:Person mapping. CONCEPT:AU-KG.ingest.enterprise-source-extractor.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from types import SimpleNamespace
 
-import msgpack
 import pytest
-from agent_utilities.knowledge_graph.memory.native_ingest import NativeIngestError
-from agent_utilities.security.brain_context import ActorContext, use_actor
-from agent_utilities.security.actor_identity import ActorType
-from agent_utilities.knowledge_graph.core.session import GraphSession, use_session
+from agent_connector_sdk.ingest import IngestError, KnowledgeIngest
 
 from scholarx.kg_ingest import ingest_documents, ingest_entities, ingest_papers, paper_entities
 from scholarx.models import Paper, PaperSource
 
 
-@pytest.fixture(autouse=True)
-def _governed_session():
-    actor = ActorContext(
-        actor_id="subject:opaque:synthetic",
-        actor_type=ActorType.AUTOMATED_SERVICE,
-        roles=(),
-        tenant_id="tenant:opaque:synthetic",
-        authenticated=True,
-    )
-    session = GraphSession(
-        actor=actor,
-        tenant=actor.tenant_id,
-        scopes=frozenset({"kg:write"}),
-        graph="graph:opaque:synthetic",
-        policy_version="policy:opaque:synthetic",
-        audience="epistemic-graph",
-    )
-    with use_actor(actor), use_session(session):
-        yield
-
-
-class _FakeNodes:
+class _FakeTransport:
     def __init__(self) -> None:
-        self.values: dict[str, dict[str, Any]] = {}
+        self.requests = []
 
-    def properties(self, node_id: str) -> dict[str, Any] | None:
-        return self.values.get(node_id)
+    async def source_status(self, connector, stream):
+        return SimpleNamespace(accepted_checkpoint=None)
 
-    def list(self) -> list[tuple[str, dict[str, Any]]]:
-        return list(self.values.items())
+    async def submit(self, request):
+        self.requests.append(request)
+        return SimpleNamespace(
+            affected_count=len(request.records),
+            relationship_count=len(request.relationships),
+        )
 
-
-class _FakeChanges:
-    def __init__(self, nodes: _FakeNodes) -> None:
-        self.nodes = nodes
-        self.edges: list[tuple[str, str, dict[str, Any]]] = []
-        self.applied: list[dict[str, Any]] = []
-        self.records: dict[str, dict[str, Any]] = {}
-        self.versions: dict[str, dict[str, Any]] = {}
-
-    def get(self, envelope_id: str) -> dict[str, Any] | None:
-        return self.records.get(envelope_id)
-
-    def content_version(self, object_id: str) -> dict[str, Any] | None:
-        return self.versions.get(object_id)
-
-    def cursor(self, _source: str, _partition: str = "") -> None:
-        return None
-
-    def apply(self, envelope: dict[str, Any]) -> dict[str, Any]:
-        self.applied.append(envelope)
-        mutation = envelope["mutation"]
-        for operation in mutation["operations"]:
-            method = operation["method"]
-            params = method["params"]
-            properties = msgpack.unpackb(params["properties_msgpack"], raw=False)
-            if method["method"] == "AddNode":
-                self.nodes.values[params["node_id"]] = properties
-            elif method["method"] == "AddEdge":
-                self.edges.append(
-                    (params["source_id"], params["target_id"], properties)
-                )
-        version = envelope["content_version"]
-        self.versions[version["object_id"]] = version
-        self.records[envelope["envelope_id"]] = envelope
-        return {
-            "batch_id": mutation["batch_id"],
-            "replayed": False,
-            "projection_pending": False,
-        }
+    async def store_blob(self, data):
+        raise AssertionError("this test's ingestion carries no media")
 
 
-class _FakeRdf:
-    def validate_shacl(self, _shapes: str, _data_graph: str) -> dict[str, Any]:
-        return {"conforms": True, "results": []}
-
-
-class _FakeClient:
-    def __init__(self) -> None:
-        self.nodes = _FakeNodes()
-        self.changes = _FakeChanges(self.nodes)
-        self.rdf = _FakeRdf()
-
-    @staticmethod
-    def supports(operation: str) -> bool:
-        return operation == "ApplyChangeEnvelope"
+@pytest.fixture
+def ingest():
+    transport = _FakeTransport()
+    return KnowledgeIngest(transport, loop=None), transport
 
 
 def _paper() -> Paper:
@@ -125,20 +58,22 @@ def _paper() -> Paper:
     )
 
 
-def test_ingest_entities_writes_nodes_and_edges():
-    c = _FakeClient()
-    res = ingest_entities(
+@pytest.mark.asyncio
+async def test_ingest_entities_writes_nodes_and_edges(ingest):
+    service, transport = ingest
+    res = await ingest_entities(
         [{"id": "a", "node_type": "Paper", "name": "p"}, {"id": "b", "node_type": "PaperSource"}],
         [{"source": "a", "target": "b", "relationship": "publishedInSource"}],
-        client=c,
+        ingest=service,
     )
     assert res == {"nodes": 2, "edges": 1}
-    assert len(c.changes.applied) == 1
-    assert set(c.nodes.values) == {"a", "b"}
-    # provenance is stamped
-    assert c.nodes.values["a"]["source"] == "scholarx"
-    assert c.nodes.values["a"]["domain"] == "scholarx"
-    assert c.changes.edges == [("a", "b", {"relationship": "publishedInSource"})]
+    assert len(transport.requests) == 1
+    request = transport.requests[0]
+    by_id = {r.record_id: r for r in request.records}
+    assert set(by_id) == {"a", "b"}
+    assert request.relationships[0].source.record_id == "a"
+    assert request.relationships[0].target.record_id == "b"
+    assert request.relationships[0].relation_reference.endswith("/relations/publishedInSource")
 
 
 def test_paper_entities_maps_paper_source_category_author():
@@ -161,8 +96,9 @@ def test_paper_entities_maps_paper_source_category_author():
     assert sum(1 for r in rels if r["relationship"] == "hasCategory") == 2
 
 
-def test_ingest_papers_dedups_shared_nodes():
-    c = _FakeClient()
+@pytest.mark.asyncio
+async def test_ingest_papers_dedups_shared_nodes(ingest):
+    service, transport = ingest
     # two arXiv papers sharing a source + one author
     p1 = _paper()
     p2 = Paper(
@@ -172,31 +108,36 @@ def test_ingest_papers_dedups_shared_nodes():
         authors=["Ada Lovelace"],
         categories=["cs.AI"],
     )
-    res = ingest_papers([p1, p2], client=c)
+    res = await ingest_papers([p1, p2], ingest=service)
+    assert res is not None and len(transport.requests) == 1
     # shared scholarx:source:arxiv, scholarx:person:ada-lovelace, scholarx:category:cs.ai
     # written only once each
-    assert "scholarx:source:arxiv" in c.nodes.values
-    assert res is not None and len(c.changes.applied) == 1
-    # source node appears exactly once
-    assert sum(1 for k in c.nodes.values if k == "scholarx:source:arxiv") == 1
+    record_ids = [r.record_id for r in transport.requests[0].records]
+    assert record_ids.count("scholarx:source:arxiv") == 1
 
 
-def test_ingest_documents_writes_document_nodes():
-    c = _FakeClient()
-    res = ingest_documents(
+@pytest.mark.asyncio
+async def test_ingest_documents_writes_document_nodes(ingest):
+    service, transport = ingest
+    res = await ingest_documents(
         [{"id": "scholarx:document:x", "text": "hello", "source_uri": "http://x"}],
-        client=c,
+        ingest=service,
     )
     assert res == {"nodes": 1, "edges": 0}
-    assert c.nodes.values["scholarx:document:x"]["node_type"] == "Document"
-    assert c.nodes.values["scholarx:document:x"]["text"] == "hello"
+    record = transport.requests[0].records[0]
+    assert record.record_id == "scholarx:document:x"
+    assert record.payload["text"] == "hello"
 
 
-def test_retired_structural_alias_is_rejected():
-    with pytest.raises(NativeIngestError, match="canonical node_type"):
-        ingest_entities([{"id": "a", "type": "Paper"}], client=_FakeClient())
+@pytest.mark.asyncio
+async def test_missing_node_type_is_rejected(ingest):
+    service, _ = ingest
+    with pytest.raises(IngestError, match="needs an id and a node_type"):
+        await ingest_entities([{"id": "a"}], ingest=service)
 
 
-def test_empty_native_ingest_is_rejected():
-    with pytest.raises(NativeIngestError, match="at least one entity"):
-        ingest_entities([], client=_FakeClient())
+@pytest.mark.asyncio
+async def test_empty_ingest_entities_is_rejected(ingest):
+    service, _ = ingest
+    with pytest.raises(IngestError, match="at least one entity"):
+        await ingest_entities([], ingest=service)

@@ -326,7 +326,7 @@ class ScholarXClient:
             try:
                 from .kg_media import ingest_pdf
 
-                ingest_pdf(str(path), paper=paper)
+                await ingest_pdf(str(path), paper=paper)
             except Exception as e:  # noqa: BLE001 — KG ingestion is never fatal to a download
                 logger.debug("Operation failed: error_type=%s", type(e).__name__)
         return str(path) if path else None

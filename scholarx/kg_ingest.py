@@ -7,11 +7,11 @@ fetches into the ONE epistemic-graph knowledge graph as **typed OWL nodes** (``:
 its abstract as searchable ``text`` — as the **document** modality in the same node. Raw PDF
 bytes ride the **blob** path in :mod:`scholarx.kg_media`.
 
-The write path is the required shared fleet transaction primitive
-``agent_utilities.knowledge_graph.memory.native_ingest``. Engine failures are explicit and
-partial writes are never acknowledged. Node ids follow
-``scholarx:<class>:<externalId>`` and ``node_type`` matches the classes federated by
-``scholarx.ontology``.
+The write path is the SDK's knowledge-ingest facade (:mod:`agent_connector_sdk.ingest`), which
+submits a typed ``ChangeSet`` through the generated epistemic-graph ``SourceIngest`` request/
+receipt types. Engine failures are explicit (:class:`~agent_connector_sdk.ingest.IngestError`)
+and partial writes are never acknowledged. Node ids follow ``scholarx:<class>:<externalId>``
+and ``node_type`` matches the classes federated by ``scholarx.ontology``.
 """
 
 from __future__ import annotations
@@ -20,56 +20,91 @@ import logging
 import re
 from typing import Any
 
-from agent_utilities.knowledge_graph.memory.native_ingest import (
-    ingest_documents as _native_ingest_documents,
-)
-from agent_utilities.knowledge_graph.memory.native_ingest import (
-    ingest_entities as _native_ingest_entities,
+from agent_connector_sdk.ingest import (
+    ChangeSet,
+    Document,
+    Entity,
+    IngestBinding,
+    IngestError,
+    KnowledgeIngest,
+    Relationship,
+    current_ingest,
 )
 
 logger = logging.getLogger("scholarx.kg")
 
-_SOURCE = "scholarx"
-_DOMAIN = "scholarx"
+_BINDING = IngestBinding(connector="scholarx", stream="scholarx")
 
 
-def ingest_entities(
-    entities: list[dict[str, Any]],
-    relationships: list[dict[str, Any]] | None = None,
-    *,
-    source: str = _SOURCE,
-    domain: str = _DOMAIN,
-    client: Any | None = None,
-    graph: str | None = None,
-) -> dict[str, int]:
-    """Write typed OWL nodes (+ edges) into the engine.
-
-    Nodes use ``node_type`` and relationships use ``relationship``.
-    """
-    return _native_ingest_entities(
-        entities,
-        relationships,
-        source=source,
-        domain=domain,
-        client=client,
-        graph=graph,
+def _to_entity(record: dict[str, Any]) -> Entity:
+    return Entity(
+        id=record.get("id"),
+        node_type=record.get("node_type"),
+        properties={k: v for k, v in record.items() if k not in ("id", "node_type")},
     )
 
 
-def ingest_documents(
+def _to_relationship(record: dict[str, Any]) -> Relationship:
+    props = {k: v for k, v in record.items() if k not in ("source", "target", "relationship")}
+    return Relationship(
+        source=record["source"],
+        target=record["target"],
+        relationship=record["relationship"],
+        properties=props or None,
+    )
+
+
+def _to_document(record: dict[str, Any]) -> Document:
+    return Document(
+        id=record["id"],
+        text=record["text"],
+        title=record.get("title"),
+        source_uri=record.get("source_uri"),
+        properties={
+            k: v for k, v in record.items() if k not in ("id", "text", "title", "source_uri", "updated_at")
+        },
+        updated_at=record.get("updated_at"),
+    )
+
+
+async def ingest_entities(
+    entities: list[dict[str, Any]],
+    relationships: list[dict[str, Any]] | None = None,
+    *,
+    ingest: KnowledgeIngest | None = None,
+) -> dict[str, int]:
+    """Write typed OWL nodes (+ edges) into the engine via the SDK's ingest facade.
+
+    Nodes use ``node_type`` and relationships use ``relationship``. The returned
+    ``{"nodes": n, "edges": m}`` is the closest honest analogue of the generated
+    ``SourceIngestionReceipt``'s ``affected_count``/``relationship_count``.
+    """
+    if not entities:
+        raise IngestError("ingest_entities needs at least one entity")
+    change_set = ChangeSet(
+        entities=tuple(_to_entity(e) for e in entities),
+        relationships=tuple(_to_relationship(r) for r in relationships or ()),
+    )
+    service = ingest or current_ingest()
+    receipt = await service.submit(_BINDING, change_set)
+    return {"nodes": receipt.affected_count, "edges": receipt.relationship_count}
+
+
+async def ingest_documents(
     docs: list[dict[str, Any]],
     *,
-    source: str = _SOURCE,
-    domain: str = _DOMAIN,
-    client: Any | None = None,
-    graph: str | None = None,
+    ingest: KnowledgeIngest | None = None,
 ) -> dict[str, int]:
-    """Write text records as ``:Document`` nodes (semantic-search fodder).
+    """Write text records as ``:Document`` nodes (semantic-search fodder) via the SDK.
 
     Each doc: ``{"id":..., "text":..., "title"?:..., "source_uri"?:..., ...props}``.
-    The native primitive performs validation, enrichment stamping, and commit.
     """
-    return _native_ingest_documents(docs, source=source, domain=domain, client=client, graph=graph)
+    if not docs:
+        raise IngestError("ingest_documents needs at least one document")
+    change_set = ChangeSet(documents=tuple(_to_document(d) for d in docs))
+    service = ingest or current_ingest()
+    receipt = await service.submit(_BINDING, change_set)
+    return {"nodes": receipt.affected_count, "edges": receipt.relationship_count}
 
 
 # ── Mapper: ScholarX Paper records → typed :Paper / :PaperSource / :Person / :ResearchCategory
@@ -188,16 +223,19 @@ def paper_entities(
     return entities, relationships
 
 
-def ingest_papers(
+async def ingest_papers(
     papers: list[Any],
     *,
-    client: Any | None = None,
-    graph: str | None = None,
+    ingest: KnowledgeIngest | None = None,
 ) -> dict[str, int] | None:
     """Map ScholarX papers → typed nodes and ingest them in one txn.
 
-    Best-effort: returns ``{"nodes":n, "edges":m}`` or ``None`` (no engine / nothing to
-    write). Never raises — safe to call default-on from the fetch flow.
+    Best-effort: returns ``{"nodes":n, "edges":m}`` or ``None`` (nothing to write).
+    Raises :class:`~agent_connector_sdk.ingest.IngestError` on an engine failure — callers
+    that need "never raises" semantics (e.g. an auto-ingest hook on the search path) should
+    catch it themselves, same as before.
     """
     entities, relationships = paper_entities(papers)
-    return ingest_entities(entities, relationships, client=client, graph=graph)
+    if not entities:
+        return None
+    return await ingest_entities(entities, relationships, ingest=ingest)

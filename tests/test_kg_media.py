@@ -1,38 +1,40 @@
 """Native epistemic-graph PDF blob ingestion — Wire-First coverage.
 
-Exercises ``scholarx.kg_media.ingest_pdf`` with a fake MediaStore (no engine required),
-asserting the store_media call carries the right media/mime type, source, name and paper
-metadata. CONCEPT:AU-KG.ingest.list-durable-media.
+Exercises ``scholarx.kg_media.ingest_pdf`` with a fake SDK ingest transport (no engine
+required), asserting the stored media asset's mime type, name and paper-metadata properties.
+CONCEPT:AU-KG.ingest.list-durable-media.
 """
 
 from __future__ import annotations
+
+from types import SimpleNamespace
+
+import pytest
+from agent_connector_sdk.ingest import KnowledgeIngest
 
 from scholarx.kg_media import ingest_pdf
 from scholarx.models import Paper, PaperSource
 
 
-class _Stored:
-    def __init__(self, asset_id, digest):
-        self.asset_id = asset_id
-        self.digest = digest
+class _FakeTransport:
+    def __init__(self) -> None:
+        self.requests = []
+
+    async def source_status(self, connector, stream):
+        return SimpleNamespace(accepted_checkpoint=None)
+
+    async def submit(self, request):
+        self.requests.append(request)
+        return SimpleNamespace(affected_count=len(request.records), relationship_count=0)
+
+    async def store_blob(self, data):
+        return "deadbeefcafebabe0000"
 
 
-class _FakeStore:
-    def __init__(self):
-        self.calls = []
-
-    def store_media(self, data, *, media_type, mime_type, source, name, extra):
-        self.calls.append(
-            {
-                "data": data,
-                "media_type": media_type,
-                "mime_type": mime_type,
-                "source": source,
-                "name": name,
-                "extra": extra,
-            }
-        )
-        return _Stored(asset_id="asset-1", digest="deadbeefcafebabe0000")
+@pytest.fixture
+def ingest():
+    transport = _FakeTransport()
+    return KnowledgeIngest(transport, loop=None), transport
 
 
 def _paper() -> Paper:
@@ -46,37 +48,38 @@ def _paper() -> Paper:
     )
 
 
-def test_ingest_pdf_stores_blob_with_metadata(tmp_path):
+@pytest.mark.asyncio
+async def test_ingest_pdf_stores_blob_with_metadata(tmp_path, ingest):
+    service, transport = ingest
     pdf = tmp_path / "paper.pdf"
-    pdf.write_bytes(b"%PDF-1.7 fake bytes")
-    store = _FakeStore()
+    data = b"%PDF-1.7 fake bytes"
+    pdf.write_bytes(data)
 
-    res = ingest_pdf(str(pdf), paper=_paper(), store=store)
+    res = await ingest_pdf(str(pdf), paper=_paper(), ingest=service)
 
-    assert res == {
-        "asset_id": "asset-1",
-        "digest": "deadbeefcafebabe0000",
-        "size_bytes": len(b"%PDF-1.7 fake bytes"),
-        "media_type": "document",
-    }
-    call = store.calls[0]
-    assert call["media_type"] == "document"
-    assert call["mime_type"] == "application/pdf"
-    assert call["source"] == "scholarx"
-    assert call["name"] == "Emergent Coordination in Multi-Agent Systems"
+    assert res is not None
+    assert res["media_type"] == "document"
+    assert res["size_bytes"] == len(data)
+    assert len(transport.requests) == 1
+    record = transport.requests[0].records[0]
+    assert record.payload["mime_type"] == "application/pdf"
+    assert record.payload["name"] == "Emergent Coordination in Multi-Agent Systems"
     # StrEnum source is flattened to its string value
-    assert call["extra"]["source"] == "arxiv"
-    assert call["extra"]["doi"] == "10.1234/abc"
-    assert call["extra"]["id"] == "2603.09022"
+    assert record.payload["source"] == "arxiv"
+    assert record.payload["doi"] == "10.1234/abc"
+    assert record.payload["id"] == "2603.09022"
 
 
-def test_ingest_pdf_noops_without_store(tmp_path):
+@pytest.mark.asyncio
+async def test_ingest_pdf_noops_without_engine(tmp_path):
     pdf = tmp_path / "paper.pdf"
     pdf.write_bytes(b"x")
-    # No injected store + no reachable engine -> clean no-op.
-    assert ingest_pdf(str(pdf), paper=_paper()) is None
+    # No injected ingest + no reachable engine -> clean no-op.
+    assert await ingest_pdf(str(pdf), paper=_paper()) is None
 
 
-def test_ingest_pdf_noops_on_missing_file():
-    assert ingest_pdf("/no/such/file.pdf", store=_FakeStore()) is None
-    assert ingest_pdf(None, store=_FakeStore()) is None
+@pytest.mark.asyncio
+async def test_ingest_pdf_noops_on_missing_file(ingest):
+    service, _ = ingest
+    assert await ingest_pdf("/no/such/file.pdf", ingest=service) is None
+    assert await ingest_pdf(None, ingest=service) is None
