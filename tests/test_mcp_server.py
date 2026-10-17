@@ -277,7 +277,7 @@ async def test_sx_storage_basic_actions(mock_client):
         assert res == {"downloads": {"job-123": {"status": "running"}}}
 
     # Unknown action now raises a rich did-you-mean error pointing at list_actions
-    # (standardized via the shared agent-utilities action-discovery helper).
+    # (standardized via the shared agent-connector-sdk action-discovery helper).
     with pytest.raises(ValueError, match="list_actions"):
         await call_sx_storage(action="nonsense")
 
@@ -612,10 +612,10 @@ def test_prompts():
     mcp = MockMCP()
     register_prompts(mcp)
 
-    assert "agent_utilities_enhancement_scan" in mcp.prompts
+    assert "agent_connector_sdk_enhancement_scan" in mcp.prompts
     assert "biomimicry_innovation_scan" in mcp.prompts
 
-    prompt1 = mcp.prompts["agent_utilities_enhancement_scan"]()
+    prompt1 = mcp.prompts["agent_connector_sdk_enhancement_scan"]()
     assert "Search for recent papers" in prompt1
 
     prompt2 = mcp.prompts["biomimicry_innovation_scan"]()
@@ -627,7 +627,7 @@ def test_prompts():
 
 @pytest.mark.concept("SX-1.0")
 def test_get_mcp_instance():
-    with patch("agent_utilities.mcp.server_factory.create_mcp_server", return_value=(MagicMock(), MagicMock(), [])):
+    with patch("agent_connector_sdk.mcp.server.create_mcp_server", return_value=(MagicMock(), MagicMock(), [])):
         args, mcp = get_mcp_instance()
         assert args is not None
         assert mcp is not None

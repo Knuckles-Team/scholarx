@@ -173,7 +173,6 @@ export MCP_URL=http://localhost:8004/mcp
 scholarx-agent --provider openai --model-id gpt-4o
 ```
 
-The repo ships [`docker/agent.compose.yml`](https://github.com/Knuckles-Team/scholarx/blob/main/docker/agent.compose.yml),
 which deploys the MCP server and the agent together and wires `MCP_URL` between them:
 
 ```yaml
@@ -192,7 +191,6 @@ services:
     ports:
       - "8004:8004"
 
-  scholarx-agent:
     image: example/scholarx@sha256:<digest>
     container_name: scholarx-agent
     hostname: scholarx-agent
@@ -214,7 +212,6 @@ services:
 ```
 
 ```bash
-docker compose -f docker/agent.compose.yml up -d
 ```
 
 ## Behind a Caddy reverse proxy
@@ -237,7 +234,6 @@ scholarx.example.com {
 ```
 
 To publish the agent's Web UI as well, add a second site block pointing at
-`scholarx-agent:9600`. Reload Caddy:
 
 ```bash
 docker compose -f services/caddy/compose.yml exec caddy caddy reload --config /etc/caddy/Caddyfile

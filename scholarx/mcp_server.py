@@ -2,7 +2,7 @@
 """ScholarX MCP Server.
 
 Thin MCP wrapper over the ScholarX API client. Provides search, discovery,
-and storage tools via the standard agent-utilities MCP server factory.
+and storage tools via the standard agent-connector-sdk MCP server factory.
 """
 
 import asyncio
@@ -543,11 +543,11 @@ def register_prompts(mcp):
     """Register analysis prompts for the genius-agent."""
 
     @mcp.prompt()
-    def agent_utilities_enhancement_scan() -> str:
-        """Scan recent CS/AI papers for agent-utilities enhancement opportunities."""
+    def agent_connector_sdk_enhancement_scan() -> str:
+        """Scan recent CS/AI papers for agent-connector-sdk enhancement opportunities."""
         return (
             "Search for recent papers in cs.AI, cs.MA, cs.SE, cs.LG, cs.CL.\n"
-            "For each paper, evaluate against agent-utilities concepts (AU-001 through AU-047):\n"
+            "For each paper, evaluate against agent-connector-sdk concepts (AU-001 through AU-047):\n"
             "1. Primary contribution type (theoretical/empirical/artifact/methodology)\n"
             "2. Gap addressed relative to existing AU concepts\n"
             "3. Theoretical relationship (extends/contradicts/complements)\n"

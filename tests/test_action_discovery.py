@@ -1,6 +1,6 @@
 """Action-discovery contract for the action-routed ScholarX MCP tools.
 
-Each action-routed tool standardizes on the shared agent-utilities helper
+Each action-routed tool standardizes on the shared agent-connector-sdk helper
 (``resolve_action``), so it must:
   * return a ``list_actions`` discovery payload listing the valid actions, and
   * raise a rich ``ValueError`` mentioning ``list_actions`` on an unknown action.

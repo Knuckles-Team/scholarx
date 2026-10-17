@@ -8,7 +8,7 @@ __all__: list[str] = []
 
 CORE_MODULES: list[str] = ["scholarx.models", "scholarx.api_client", "scholarx.deduplication", "scholarx.paper_storage"]
 
-OPTIONAL_MODULES = {"scholarx.agent_server": "agent_server", "scholarx.mcp_server": "mcp_server"}
+OPTIONAL_MODULES = {"scholarx.mcp_server": "mcp_server"}
 
 
 def _expose_members(module):
@@ -38,7 +38,7 @@ def _import_module_safely(module_name: str):
         return None
 
 
-_AVAILABILITY_FLAG_MARKERS = {"_MCP_AVAILABLE": "mcp_server", "_AGENT_AVAILABLE": "agent_server"}
+_AVAILABILITY_FLAG_MARKERS = {"_MCP_AVAILABLE": "mcp_server"}
 
 
 def _resolve_availability_flag(name: str) -> bool | None:

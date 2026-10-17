@@ -21,11 +21,12 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import httpx
-from agent_utilities.core.http_client import create_async_http_client
+from agent_connector_sdk.http.client import create_async_http_client
+from agent_connector_sdk.http.options import HttpClientOptions
 
 logger = logging.getLogger(__name__)
 
-from agent_utilities.core import paths
+from agent_connector_sdk import paths
 
 from .models import Paper
 
@@ -289,15 +290,14 @@ class PaperStorage:
         destination = _ensure_destination_within_storage(destination, self.storage_dir)
 
         current_url = url
-        async with create_async_http_client(
-            timeout=httpx.Timeout(120.0, connect=30.0),
-            follow_redirects=False,
-            pin_egress=True,
-            allow_loopback=False,
-            trust_env=False,
-        ) as client:
-            for _ in range(_MAX_REDIRECTS + 1):
-                await _validate_download_url(current_url)
+        for _ in range(_MAX_REDIRECTS + 1):
+            await _validate_download_url(current_url)
+            parts = urlsplit(current_url)
+            options = HttpClientOptions(
+                base_url=f"{parts.scheme}://{parts.netloc}",
+                timeout=httpx.Timeout(120.0, connect=30.0),
+            )
+            async with create_async_http_client(options) as client:
                 async with client.stream("GET", current_url) as response:
                     redirect_url = _redirect_target(response, current_url)
                     if redirect_url is not None:

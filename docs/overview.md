@@ -1,7 +1,7 @@
 # scholarx — Concept Overview
 
 > **Category**: Intelligence | **Ecosystem Role**: MCP Server + A2A Agent
-> Built on [`agent-utilities`](https://github.com/Knuckles-Team/agent-utilities) — the unified AGI Harness.
+> Built on [`agent-connector-sdk`](https://github.com/Knuckles-Team/agent-connector-sdk) — the unified AGI Harness.
 
 ## Description
 
@@ -9,13 +9,13 @@ Universal Research Paper API — single entry point for arXiv, PMC, bioRxiv, med
 
 ## Enterprise Readiness
 
-All agents in the ecosystem inherit enterprise-grade infrastructure from `agent-utilities`:
+All agents in the ecosystem inherit enterprise-grade infrastructure from `agent-connector-sdk`:
 
 | Feature | Status | Source |
 |:--------|:-------|:-------|
-| **JWT/OIDC Authentication** | ✅ Built-in | `agent-utilities[auth]` — Authlib JWKS + API key middleware |
-| **OpenTelemetry Instrumentation** | ✅ Built-in | `agent-utilities[logfire]` — OTLP export, FastAPI auto-instrumentation |
-| **HashiCorp Vault Integration** | ✅ Built-in | `agent-utilities[vault]` — `secret://`, `env://`, `vault://` URI schemes |
+| **JWT/OIDC Authentication** | ✅ Built-in | `agent-connector-sdk` — Authlib JWKS + API key middleware |
+| **OpenTelemetry Instrumentation** | ✅ Built-in | `agent-connector-sdk` — OTLP export, FastAPI auto-instrumentation |
+| **HashiCorp Vault Integration** | ✅ Built-in | `agent-connector-sdk` — `secret://`, `env://`, `vault://` URI schemes |
 | **Audit Logging** | ✅ Built-in | Append-only compliance trail with 30+ action types (CONCEPT:AU-OS.governance.wasm-micro-agent-sandbox) |
 | **Token Usage Analytics** | ✅ Built-in | 4-bucket tracking with budget alerting (CONCEPT:AU-OS.governance.wasm-micro-agent-sandbox) |
 | **Prompt Injection Defense** | ✅ Built-in | 25+ pattern scanner + jailbreak taxonomy (CONCEPT:AU-OS.config.secrets-authentication) |
@@ -30,11 +30,11 @@ This project implements or inherits the following ecosystem concepts:
 
 | Concept ID | Description | Source |
 |:-----------|:------------|:-------|
-| ECO-4.1 | MCP & Universal Skills | `agent-utilities` (inherited) |
-| KG-2.11 | **Research Intelligence Pipeline** | `agent-utilities` (inherited) |
-| KG-2.12 | **KG Source Resolver** | `agent-utilities` (inherited) |
+| ECO-4.1 | MCP & Universal Skills | `agent-connector-sdk` (inherited) |
+| KG-2.11 | **Research Intelligence Pipeline** | `agent-connector-sdk` (inherited) |
+| KG-2.12 | **KG Source Resolver** | `agent-connector-sdk` (inherited) |
 
-> 📖 **Full Registry**: See [`agent-utilities/docs/overview.md`](https://github.com/Knuckles-Team/agent-utilities/blob/main/docs/overview.md) for the complete 5-Pillar concept index.
+> 📖 **Full Registry**: See [`agent-connector-sdk/docs/overview.md`](https://github.com/Knuckles-Team/agent-connector-sdk/blob/main/docs/overview.md) for the complete 5-Pillar concept index.
 
 ## Architecture
 
