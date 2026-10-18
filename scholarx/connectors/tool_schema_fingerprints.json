@@ -1,8 +1,8 @@
 {
-  "algorithm": "agent-connector-sdk:mcp-tool-schema-compat:v1",
+  "algorithm": "agent-connector-sdk:mcp-tool-contract-compat:v2",
   "connector": "scholarx",
   "schema_version": "1",
   "tools": {
-    "sx_search": "60226a567d4e8c45a92faa315e608383e16ba4dc5de9a6db610783ba885c30ca"
+    "scholarx_search": "588f116d74c2358f98dd975109b4fae33bd410d805dff3dc287f564924f41e16"
   }
 }
