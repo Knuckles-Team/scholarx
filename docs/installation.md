@@ -23,8 +23,7 @@ extra for the surface the operator need:
 
 | Extra | Install | Pulls in |
 |---|---|---|
-| `mcp` | `pip install "scholarx[mcp]"` | FastMCP MCP-server runtime (`agent-utilities[mcp]`) |
-| `agent` | `pip install "scholarx[agent]"` | Pydantic-AI agent + Logfire tracing (`agent-utilities[agent-runtime,logfire]`) |
+| `mcp` | `pip install "scholarx[mcp]"` | FastMCP MCP-server runtime (`agent-connector-sdk`) |
 | `all` | `pip install "scholarx[all]"` | Both the MCP server and the agent |
 
 ```bash

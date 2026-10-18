@@ -85,7 +85,7 @@ def test_queue_lifecycle_exception():
     # Assert exception states
     job_status = BACKGROUND_DOWNLOADS[job_id]
     assert job_status["status"] == "failed"
-    assert job_status["error"] == "Disk is full!"
+    assert job_status["error"] == "Background download failed"
     assert "completed_at" in job_status
     assert job_status["paper_id"] == "arxiv:test-queue-3"
 

@@ -2,10 +2,10 @@
 """ScholarX Relevance-Scored Paper Pipeline.
 
 Fetches 30 papers from arXiv cs.AI, scores each abstract against
-agent-utilities domain concepts, and saves only the relevant ones
+agent-connector-sdk domain concepts, and saves only the relevant ones
 for comparative analysis.
 
-Relevance scoring uses keyword matching against core agent-utilities
+Relevance scoring uses keyword matching against core agent-connector-sdk
 domains: knowledge graphs, multi-agent orchestration, planning,
 reasoning, tool use, memory, evaluation, etc.
 """
@@ -27,7 +27,7 @@ from scholarx.models import PaperSource, SearchQuery
 OUTPUT_DIR = Path(os.environ.get("SCHOLARX_OUTPUT_DIR", str(Path.cwd() / "scholarx_papers" / "batch_30"))).expanduser()
 
 # ── Relevance Concept Taxonomy ──────────────────────────────────────────────
-# Weighted keywords grouped by agent-utilities domains.
+# Weighted keywords grouped by agent-connector-sdk domains.
 # Higher weight = more directly relevant to AU concepts.
 
 RELEVANCE_TAXONOMY = {
@@ -217,7 +217,7 @@ def _verdict_for_score(total_score: float) -> str:
 
 
 def score_paper(title: str, abstract: str) -> dict:
-    """Score a paper's relevance to agent-utilities.
+    """Score a paper's relevance to agent-connector-sdk.
 
     Returns a dict with:
       - total_score: weighted relevance score
@@ -495,7 +495,7 @@ async def main():
     print(f"   Retrieved: {result.total_count} papers", file=sys.stderr)
 
     # Score each paper
-    print("\n📊 Scoring relevance against agent-utilities concepts...\n", file=sys.stderr)
+    print("\n📊 Scoring relevance against agent-connector-sdk concepts...\n", file=sys.stderr)
     scored_papers = _score_batch_papers(result.papers)
 
     # Display results

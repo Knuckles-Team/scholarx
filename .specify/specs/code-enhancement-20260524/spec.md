@@ -19,7 +19,7 @@
 ## Functional Requirements
 
 - **FR-001**: Minor update: pytest-xdist 3.6.0 (constraint — not installed) -> 3.8.0
-- **FR-002**: Minor update: agent-utilities 0.2.40 (installed) -> 0.16.0
+- **FR-002**: Minor update: agent-connector-sdk 0.2.40 (installed) -> 0.16.0
 - **FR-003**: MAJOR update: pypdf 5.0 (constraint — not installed) -> 6.12.1
 - **FR-004**: MAJOR update: rich 13.9.4 (installed) -> 15.0.0
 - **FR-005**: Minor update: Levenshtein 0.26 (constraint — not installed) -> 0.27.3
@@ -53,7 +53,7 @@
 - **FR-033**: 8 tests use weak assertions (assert result is not None, assert True, etc.)
 - **FR-034**: 5 tests have excessive mocking (>5 mocks) — test behavior, not implementation
 - **FR-035**: Undocumented env vars: OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_PUBLIC_KEY, OTEL_EXPORTER_OTLP_SECRET_KEY
-- **FR-036**: Analysis error: No module named 'agent_utilities.knowledge_graph'
+- **FR-036**: Analysis error: No module named 'agent_connector_sdk.knowledge_graph'
 
 ## Success Criteria
 
