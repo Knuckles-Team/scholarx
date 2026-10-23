@@ -104,5 +104,7 @@
     source repositories, subject categories, authors (shared :Person), abstracts and
     full-text PDFs (shared :Document / :AssetOccurrence) — federated into the agent-connector-sdk
     knowledge-graph hub across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF and
-    Semantic Scholar.""" ;
-    owl:imports <http://knuckles.team/kg> .
+    Semantic Scholar.""" .
+
+# ontology-codemod R3
+<http://knuckles.team/kg#ResearchCategory> rdfs:subClassOf <http://knuckles.team/kg#Category> .
