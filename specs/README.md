@@ -12,4 +12,5 @@ Read the existing specs first. Extend the spec that owns the behavior. Create a 
 
 ## Local specifications
 
-This repository has no local spec yet.
+- [`connector-content`](connector-content/spec.md): `CONN-SCHOLARX-CONNECTOR-CONTENT`, the connector serves its packaged content.
+- [`api-coverage`](api-coverage/spec.md): `CONN-SCHOLARX-API-COVERAGE`, every API operation has an MCP tool.

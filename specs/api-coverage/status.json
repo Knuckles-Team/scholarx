@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "spec_id": "CONN-SCHOLARX-API-COVERAGE",
+  "owner_repo": "scholarx",
+  "delivery_state": "VERIFIED",
+  "requirement_ids": [
+    "CONN-SCHOLARX-API-COVERAGE-R001"
+  ],
+  "requirements": [
+    {
+      "id": "CONN-SCHOLARX-API-COVERAGE-R001",
+      "title": "One tool per operation",
+      "delivery_state": "VERIFIED",
+      "landed_in": [
+        "85f82f3e7c54",
+        "c98cfa5180a9"
+      ],
+      "verified_by": [
+        "tests/test_operation_tools.py:13"
+      ]
+    }
+  ]
+}

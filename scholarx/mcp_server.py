@@ -19,7 +19,7 @@ from pydantic import Field
 
 load_config()
 
-__version__ = "2.3.3"
+__version__ = "2.3.4"
 
 # Wall budget for an inline single-paper download before it is handed to the
 # background queue. Kept well under the MCP child-call timeout so a slow source
@@ -501,6 +501,66 @@ def register_storage_tools(mcp):
         return {"error": f"Unknown action: {action}"}  # pragma: no cover
 
 
+async def _sx_resolve_papers(client, paper_source, ids) -> list:
+    """Resolve each id to a Paper; ids that cannot be resolved are dropped."""
+    found = await asyncio.gather(*(client.get_paper(paper_source, pid) for pid in ids))
+    return [paper for paper in found if paper]
+
+
+def register_operation_tools(mcp):
+    """Register one tool per API-client operation not covered by the routed tools."""
+
+    @mcp.tool(tags={"discovery"}, annotations={"readOnlyHint": True})
+    async def sx_enabled_sources() -> dict:
+        """List the paper sources enabled on this server (``ScholarXClient.enabled_sources``)."""
+        client = _get_client()
+        return {"sources": [s.value for s in client.enabled_sources]}
+
+    @mcp.tool(
+        tags={"storage"},
+        annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
+    )
+    async def sx_download_papers(
+        source: str = Field(description="Paper source (arxiv, pmc, etc.)"),
+        paper_ids: str = Field(description="Comma-separated paper IDs to download in parallel"),
+        concurrency: int = Field(default=0, description="Max simultaneous downloads; 0 auto-sizes"),
+    ) -> dict:
+        """Download many papers in parallel (``ScholarXClient.download_papers``)."""
+        from scholarx.models import PaperSource
+
+        error, paper_source, ids = _validate_bulk_download_request(source, paper_ids, PaperSource)
+        if error:
+            return error
+        client = _get_client()
+        papers = await _sx_resolve_papers(client, paper_source, ids)
+        try:
+            results = await client.download_papers(papers, concurrency=concurrency)
+        except ValueError:
+            return {"error": "Invalid download request"}
+        return {"results": results}
+
+    @mcp.tool(
+        tags={"storage"},
+        annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
+    )
+    async def sx_download_urls(
+        paper_ids: str = Field(description="Comma-separated arXiv ids or abs/pdf URLs"),
+        concurrency: int = Field(default=0, description="Max simultaneous downloads; 0 auto-sizes"),
+    ) -> dict:
+        """Download arXiv PDFs directly by id or URL in parallel (``ScholarXClient.download_urls``)."""
+        if not paper_ids:
+            return {"error": "'paper_ids' required"}
+        if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
+            return {"error": "'paper_ids' input limit exceeded"}
+        raw_ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
+        client = _get_client()
+        try:
+            results = await client.download_urls(raw_ids, concurrency=concurrency)
+        except ValueError:
+            return {"error": "Invalid download request"}
+        return {"results": results}
+
+
 def register_kg_tools(mcp):
     """Register native knowledge-graph ingestion tools (Wire-First)."""
 
@@ -600,6 +660,7 @@ def get_mcp_instance():
             register_search_tools,
             register_discovery_tools,
             register_storage_tools,
+            register_operation_tools,
             register_kg_tools,
         ],
     )
