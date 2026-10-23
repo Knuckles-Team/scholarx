@@ -1,4 +1,4 @@
-connector: scholarx
+connector: scholarx-mcp
 ontology_source: scholarx
 schema_version: '1'
 resources:

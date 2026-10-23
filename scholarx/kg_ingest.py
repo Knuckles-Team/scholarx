@@ -33,7 +33,7 @@ from agent_connector_sdk.ingest import (
 
 logger = logging.getLogger("scholarx.kg")
 
-_BINDING = IngestBinding(connector="scholarx", stream="scholarx")
+_BINDING = IngestBinding(connector="scholarx-mcp", stream="scholarx")
 
 
 def _to_entity(record: dict[str, Any]) -> Entity:
@@ -60,9 +60,7 @@ def _to_document(record: dict[str, Any]) -> Document:
         text=record["text"],
         title=record.get("title"),
         source_uri=record.get("source_uri"),
-        properties={
-            k: v for k, v in record.items() if k not in ("id", "text", "title", "source_uri", "updated_at")
-        },
+        properties={k: v for k, v in record.items() if k not in ("id", "text", "title", "source_uri", "updated_at")},
         updated_at=record.get("updated_at"),
     )
 
