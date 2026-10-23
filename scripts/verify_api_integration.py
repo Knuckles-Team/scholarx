@@ -23,7 +23,7 @@ BASELINES = {
     "portainer-agent": 35.5,
     "postiz-agent": 0.0,
     "qbittorrent-agent": 70.8,
-    "scholarx": 75.0,
+    "scholarx": 90.0,
     "servicenow-api": 73.1,
     "stirlingpdf-agent": 0.0,
     "wger-agent": 41.7,

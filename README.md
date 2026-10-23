@@ -68,6 +68,9 @@ The table below is auto-generated from the MCP server — do not edit by hand.
 | `sx_info` | `DISCOVERYTOOL` | Get metadata about sources and categories. |
 | `sx_search` | `SEARCHTOOL` | Search for research papers across all configured sources. |
 | `sx_storage` | `STORAGETOOL` | Manage offline PDF storage and background downloads. |
+| `sx_enabled_sources` | `OPERATIONTOOL` | List the paper sources enabled on this server (read-only). |
+| `sx_download_papers` | `OPERATIONTOOL` | Download many papers in parallel. |
+| `sx_download_urls` | `OPERATIONTOOL` | Download arXiv PDFs directly by id or URL in parallel. |
 
 #### Verbose 1:1 API-mapped tools (`MCP_TOOL_MODE=verbose` or `both`)
 
