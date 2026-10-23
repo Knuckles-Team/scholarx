@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "spec_id": "CONN-SCHOLARX-CONNECTOR-CONTENT",
+  "owner_repo": "scholarx",
+  "delivery_state": "VERIFIED",
+  "requirement_ids": [
+    "CONN-SCHOLARX-CONNECTOR-CONTENT-R001"
+  ],
+  "requirements": [
+    {
+      "id": "CONN-SCHOLARX-CONNECTOR-CONTENT-R001",
+      "title": "Default content",
+      "delivery_state": "VERIFIED",
+      "landed_in": [
+        "c98cfa5180a9"
+      ],
+      "verified_by": [
+        "tests/test_default_content_surfaces.py:15"
+      ]
+    }
+  ]
+}
