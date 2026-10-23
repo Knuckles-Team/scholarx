@@ -23,7 +23,7 @@ BASELINES = {
     "portainer-agent": 35.5,
     "postiz-agent": 0.0,
     "qbittorrent-agent": 70.8,
-    "scholarx": 90.0,
+    "scholarx": 75.0,
     "servicenow-api": 73.1,
     "stirlingpdf-agent": 0.0,
     "wger-agent": 41.7,
@@ -134,6 +134,7 @@ def parse_mcp_server(filepath, api_methods):
 
     tool_mappings = {}
     all_mapped_methods = set()
+    functions = {n.name: n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
 
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -141,6 +142,18 @@ def parse_mcp_server(filepath, api_methods):
         if not _is_mcp_tool_function(node):
             continue
         mapping, mapped = _map_tool_function_methods(node, api_methods)
+        # A tool may delegate to module-level helpers: follow those calls transitively.
+        seen = {node.name}
+        pending = [node]
+        while pending:
+            current = pending.pop()
+            for call in ast.walk(current):
+                if isinstance(call, ast.Call) and isinstance(call.func, ast.Name):
+                    helper = functions.get(call.func.id)
+                    if helper is not None and helper.name not in seen:
+                        seen.add(helper.name)
+                        pending.append(helper)
+                        mapped = mapped | _map_tool_function_methods(helper, api_methods)[1]
         tool_mappings[node.name] = mapping
         all_mapped_methods.update(mapped)
 

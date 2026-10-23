@@ -31,7 +31,7 @@ from agent_connector_sdk.ingest import (
 
 logger = logging.getLogger("scholarx.kg")
 
-_BINDING = IngestBinding(connector="scholarx", stream="scholarx")
+_BINDING = IngestBinding(connector="scholarx-mcp", stream="scholarx")
 
 # Paper metadata worth carrying onto the stored media asset's properties.
 _META_FIELDS = ("id", "title", "doi", "url", "source", "published_date")
