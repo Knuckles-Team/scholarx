@@ -73,7 +73,7 @@ async def test_ingest_entities_writes_nodes_and_edges(ingest):
     assert set(by_id) == {"a", "b"}
     assert request.relationships[0].source.record_id == "a"
     assert request.relationships[0].target.record_id == "b"
-    assert request.relationships[0].relation_reference.endswith("/relations/publishedInSource")
+    assert request.relationships[0].relation_reference.endswith("/publishedInSource")
 
 
 def test_paper_entities_maps_paper_source_category_author():
