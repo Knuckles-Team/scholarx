@@ -1,4 +1,4 @@
-"""CONN-SCHOLARX-API-COVERAGE-R001: one MCP tool per remaining API operation, coverage at the 90 baseline."""
+"""CONN-SCHOLARX-API-COVERAGE-R001: direct tools for uncovered operations at the measured baseline."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 

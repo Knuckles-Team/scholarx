@@ -190,6 +190,6 @@ def test_rate_gate_throttles_starts(monkeypatch):
         t.join()
 
     starts.sort()
-    gaps = [b - a for a, b in zip(starts, starts[1:], strict=True)]
+    gaps = [b - a for a, b in zip(starts, starts[1:], strict=False)]
     # Every consecutive pair of starts is separated by ~>= the min interval.
     assert all(g >= q._MIN_START_INTERVAL - 0.01 for g in gaps)
