@@ -161,9 +161,7 @@ async def test_download_urls_caps_in_flight(tmp_path):
     async def download(pid):
         async with lock:
             state["in_flight"] += 1
-            state["max_in_flight"] = max(
-                state["max_in_flight"], state["in_flight"]
-            )
+            state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
         try:
             await asyncio.sleep(0.02)
             path = tmp_path / f"{pid}.pdf"
@@ -204,9 +202,7 @@ async def test_download_urls_skips_existing(tmp_path):
 
     client = _client_with_mock_storage(tmp_path)
     client.storage.download_arxiv_id = download
-    results = await client.download_urls(
-        ["https://arxiv.org/abs/2603.00001", "2603.00002"]
-    )
+    results = await client.download_urls(["https://arxiv.org/abs/2603.00001", "2603.00002"])
     by_id = {r["paper_id"]: r for r in results}
 
     assert by_id["2603.00001"]["status"] == "cached"

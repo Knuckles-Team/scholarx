@@ -80,7 +80,7 @@ def _schedule_download_tasks(normalized: list[str | None], one_fn) -> list[async
 
 
 def _normalize_download_ids(ids: list[str]) -> list[str | None]:
-    """Normalize each raw id, keeping position; an unparseable id becomes None."""
+    """Normalize each raw id, keeping position; an unparsable id becomes None."""
     normalized: list[str | None] = []
     for raw_id in ids:
         try:

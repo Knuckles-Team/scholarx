@@ -1,11 +1,11 @@
 import argparse
-import asyncio
 import json
 import subprocess
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from scholarx.cli import (
     _run_auto_analysis,
     _show_status,
@@ -427,7 +427,9 @@ def test_run_auto_analysis_success_details(mock_subproc, tmp_path):
     mock_subproc.side_effect = Exception("Subprocess failure")
     with patch("pathlib.Path.exists", mock_exists), patch("scholarx.cli.console.print") as mock_print:
         _run_auto_analysis(args)
-        any_err = any("Paper analysis failed: Exception" in str(call[0][0]) for call in mock_print.call_args_list if call[0])
+        any_err = any(
+            "Paper analysis failed: Exception" in str(call[0][0]) for call in mock_print.call_args_list if call[0]
+        )
         assert any_err
 
 
