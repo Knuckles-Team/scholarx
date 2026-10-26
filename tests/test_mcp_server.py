@@ -371,9 +371,7 @@ async def test_sx_storage_download_url_rejects_traversal(mock_client):
     mock_client.storage.download_arxiv_id = AsyncMock()
 
     with patch("scholarx.mcp_server._get_client", return_value=mock_client):
-        result = await call_sx_storage(
-            action="download_url", paper_ids="../../outside,https://example.com/a.pdf"
-        )
+        result = await call_sx_storage(action="download_url", paper_ids="../../outside,https://example.com/a.pdf")
 
     assert [item["status"] for item in result["results"]] == ["rejected", "rejected"]
     mock_client.storage.download_arxiv_id.assert_not_awaited()
@@ -491,9 +489,7 @@ async def test_sx_storage_download_url_deadline_exceeded_precheck(mock_client):
         patch("scholarx.mcp_server._get_client", return_value=mock_client),
         patch("scholarx.mcp_server._MAX_DIRECT_DOWNLOAD_SECONDS", -1.0),
     ):
-        res = await call_sx_storage(
-            action="download_url", paper_ids="2603.09022,2603.09023"
-        )
+        res = await call_sx_storage(action="download_url", paper_ids="2603.09022,2603.09023")
     results = res["results"]
     assert len(results) == 1
     assert results[0] == {

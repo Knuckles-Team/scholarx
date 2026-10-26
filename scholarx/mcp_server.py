@@ -9,6 +9,7 @@ import asyncio
 import logging
 import sys
 from dataclasses import dataclass
+from importlib.metadata import version as _distribution_version
 
 from agent_connector_sdk.config import load_config, setting
 from agent_connector_sdk.mcp.action_dispatch import resolve_action
@@ -19,7 +20,7 @@ from pydantic import Field
 
 load_config()
 
-__version__ = "2.3.5"
+__version__ = _distribution_version("scholarx")
 
 # Wall budget for an inline single-paper download before it is handed to the
 # background queue. Kept well under the MCP child-call timeout so a slow source

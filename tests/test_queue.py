@@ -1,11 +1,13 @@
 import asyncio
-import pytest
 import threading
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from scholarx.models import Paper, PaperSource
-from scholarx.queue import JOB_QUEUE, BACKGROUND_DOWNLOADS, POOL_SIZE
+from scholarx.queue import BACKGROUND_DOWNLOADS, JOB_QUEUE, POOL_SIZE
 
 
 @pytest.fixture(autouse=True)
@@ -143,9 +145,7 @@ def test_queue_pool_drains_many_jobs_with_bounded_concurrency(monkeypatch):
 
     job_ids = []
     for i in range(n_jobs):
-        paper = Paper(
-            id=f"arxiv:pool-{i}", title=f"Pool Paper {i}", authors=["Z"], source=PaperSource.ARXIV
-        )
+        paper = Paper(id=f"arxiv:pool-{i}", title=f"Pool Paper {i}", authors=["Z"], source=PaperSource.ARXIV)
         job_id = f"job-pool-{i}"
         job_ids.append(job_id)
         BACKGROUND_DOWNLOADS[job_id] = {"status": "queued", "paper_id": paper.id}
@@ -190,6 +190,6 @@ def test_rate_gate_throttles_starts(monkeypatch):
         t.join()
 
     starts.sort()
-    gaps = [b - a for a, b in zip(starts, starts[1:])]
+    gaps = [b - a for a, b in zip(starts, starts[1:], strict=True)]
     # Every consecutive pair of starts is separated by ~>= the min interval.
     assert all(g >= q._MIN_START_INTERVAL - 0.01 for g in gaps)
