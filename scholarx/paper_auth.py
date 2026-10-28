@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol
 
-from agent_connector_sdk.adapters.paper_models import PaperQuery
+
+class _TenantScoped(Protocol):
+    @property
+    def tenant(self) -> str: ...
+
+
 from fastmcp.server.dependencies import get_access_token
 
 
@@ -23,7 +28,7 @@ class VerifiedPaperAccess:
         self._tenant_claim = tenant_claim
         self._required_scopes = required_scopes
 
-    async def __call__(self, query: PaperQuery, ctx: Any) -> bool:
+    async def __call__(self, query: _TenantScoped, ctx: Any) -> bool:
         try:
             token = get_access_token()
             if token is None or not str(ctx.session_id or "").strip():

@@ -101,3 +101,19 @@ def test_verified_bearer_enforces_tenant_and_scope(monkeypatch):
 def test_policy_requires_host_supplied_scope():
     with pytest.raises(ValueError):
         VerifiedPaperAccess(tenant_claim="tenant_id", required_scopes=frozenset())
+
+
+def test_host_refuses_stream_for_unconfigured_provider():
+    from scholarx.paper_host import build_paper_mcp
+
+    http = HttpClientOptions(base_url="https://example.org", pin_egress=True, retry=RetryPolicy(max_attempts=1))
+    quota = PaperQuotaPolicy(provider_id="arxiv", credential_group="arxiv", policy_revision="v1", minimum_spacing_ns=1)
+    query = PaperQuery(tenant="tenant-a", query="graph", provider_ids=("unknown",), schema_revision="v1")
+    with pytest.raises(ValueError, match="configured provider"):
+        build_paper_mcp(
+            engine_client=object(),
+            tenant_claim="tenant_id",
+            required_scopes=frozenset({"paper:read"}),
+            arxiv=(http, quota),
+            streams={"paper_unknown": query},
+        )

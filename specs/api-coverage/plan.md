@@ -23,6 +23,9 @@ The host may bind paper access to the verified MCP bearer identity. It chooses
 the tenant claim and required scopes. Missing identity, session, tenant or
 scope refuses access. A query tenant must match the verified token's tenant.
 This check does not select a credential or grant storage access.
+The paper host composition uses the same verified caller check for search and
+document admission. The host supplies its graph client and storage decision.
+Only supplied provider policies and configured streams are registered.
 
 The restart test starts a real EG server and a network MCP host. It imports the
 host's actual live source declaration as a connector pack. Three separate

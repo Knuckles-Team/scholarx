@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 import uvicorn
-from agent_connector_sdk.adapters.paper_models import PaperQuery
+from agent_connector_sdk.adapters.paper_models import DocumentOffer, PaperQuery
 from agent_connector_sdk.adapters.paper_quota import PaperQuotaPolicy
 from agent_connector_sdk.http.options import HttpClientOptions
 from agent_connector_sdk.http.retry import RetryPolicy
@@ -20,9 +20,7 @@ from epistemic_graph.generated.connector_pack import PackEntryKind, PackProducer
 from fastmcp import Client
 from fastmcp.client import BearerAuth
 
-from scholarx.mcp_server import get_mcp_instance
-from scholarx.paper_auth import VerifiedPaperAccess
-from scholarx.paper_source import create_paper_service
+from scholarx.paper_host import build_paper_mcp
 from tests.live_engine import _LIVE, PRINCIPAL, TENANT, live_ingest, scoped_client  # noqa: F401
 from tests.paper_support import catalog as _catalog
 from tests.paper_support import mutation_context as _mutation_context
@@ -37,18 +35,28 @@ async def start(url):
     listener.bind(("127.0.0.1", 0))
     listener.listen()
     port = listener.getsockname()[1]
-    service = create_paper_service(
-        engine_client=engine,
-        authorize=VerifiedPaperAccess(tenant_claim="tenant_id", required_scopes=frozenset({"paper:read"})),
-        arxiv_http=HttpClientOptions(
-            base_url=url + "/api", pin_egress=True, allow_loopback=True, retry=RetryPolicy(max_attempts=1)
-        ),
-        arxiv_quota=PaperQuotaPolicy(
-            provider_id="arxiv", credential_group="runner-arxiv", policy_revision="v1", minimum_spacing_ns=1
-        ),
-    )
+    authority_calls = []
+
+    async def document_authority(request, ctx):
+        authority_calls.append(request)
+        return None
+
     query = PaperQuery(tenant=TENANT, query="graph", provider_ids=("arxiv",), schema_revision="v1", page_bound=1)
-    _, mcp = get_mcp_instance(paper_service=service, paper_ingest_streams=(("paper_arxiv_ingest", query),))
+    _, mcp = build_paper_mcp(
+        engine_client=engine,
+        tenant_claim="tenant_id",
+        required_scopes=frozenset({"paper:read"}),
+        arxiv=(
+            HttpClientOptions(
+                base_url=url + "/api", pin_egress=True, allow_loopback=True, retry=RetryPolicy(max_attempts=1)
+            ),
+            PaperQuotaPolicy(
+                provider_id="arxiv", credential_group="runner-arxiv", policy_revision="v1", minimum_spacing_ns=1
+            ),
+        ),
+        document_authority=document_authority,
+        streams={"paper_arxiv_ingest": query},
+    )
     server = uvicorn.Server(uvicorn.Config(mcp.http_app(), log_level="error", lifespan="on"))
     task = asyncio.create_task(server.serve(sockets=[listener]))
     for _ in range(500):
@@ -57,6 +65,21 @@ async def start(url):
         await asyncio.sleep(0.01)
     assert server.started
     async with Client(f"http://127.0.0.1:{port}/mcp", auth=BearerAuth(TOKEN)) as client:
+        denied = await client.call_tool(
+            "paper_download",
+            {
+                "request": {
+                    "tenant": "another-tenant",
+                    "paper_id": "paper",
+                    "revision": None,
+                    "offer": DocumentOffer(
+                        provider_id="arxiv", url=url + "/document", media_type="text/html"
+                    ).model_dump(mode="json"),
+                }
+            },
+        )
+        assert denied.structured_content["reason"] == "unauthorized"
+        assert authority_calls == []
         resource = await client.read_resource("connector://resources")
         body = resource[0].text.encode()
     context = _mutation_context().model_copy(update={"tenant_id": TENANT})
