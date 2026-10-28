@@ -23,3 +23,9 @@ The host may bind paper access to the verified MCP bearer identity. It chooses
 the tenant claim and required scopes. Missing identity, session, tenant or
 scope refuses access. A query tenant must match the verified token's tenant.
 This check does not select a credential or grant storage access.
+
+The restart test starts a real EG server and a network MCP host. It imports the
+host's actual live source declaration as a connector pack. Three separate
+runner processes accept a page, observe an upstream failure, and resume. The
+test checks the unchanged failure checkpoint and both graph records. It skips
+when the test environment has no EG server binary.
