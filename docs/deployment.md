@@ -279,3 +279,28 @@ Add to the operator's client's `mcp_config.json` (multiplexer nickname `sx`):
 ```
 
 For a remote HTTP server, point the client at `http://scholarx.example.invalid/mcp` instead.
+
+## Host-authorized paper sources
+
+A host that supplies a verified epistemic-graph client can compose governed
+paper operations with `scholarx.paper_host.build_paper_mcp`. The host supplies
+its verified token tenant claim and required scopes, provider HTTP options,
+credential quota groups, and any configured provider streams. A stream binds one
+query to one tenant and provider. The returned server exposes the selected
+paper operations and advertises only the configured streams.
+
+For document retrieval, the host also supplies a document authority. It must
+check the requested paper and destination, then return an admitted tenant
+storage root, governed HTTP options, and the matching provider quota. The host
+must use durable storage when documents must survive a pod restart. The search
+and document tools both check the verified caller's tenant and scopes before
+calling a provider or the document authority.
+
+The host must configure the MCP transport's authentication provider and token
+audience. A token without the host-selected tenant or scopes is refused. The
+standard `scholarx-mcp` entry point does not infer paper policy or construct a
+verified graph client; an operator-owned embedder must pass those authorities
+to `build_paper_mcp`. The graph must accept the connector mapping before the
+sync runner submits a stream. Shared quota state uses EG; a retained quota lock
+requires authorized operator recovery after an unresolved provider delay or
+worker failure.
