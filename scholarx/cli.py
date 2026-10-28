@@ -39,7 +39,9 @@ from rich.table import Table
 
 console = Console()
 
-__version__ = "0.4.1"
+from importlib.metadata import version as _distribution_version
+
+__version__ = _distribution_version("scholarx")
 
 # ── Default Relevance Taxonomy ──────────────────────────────────────────────
 

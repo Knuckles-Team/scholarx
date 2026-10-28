@@ -6,28 +6,12 @@ Served live as ``connector://resources``. Regenerate by editing the declarations
 # ruff: noqa: E501
 from __future__ import annotations
 
-from agent_connector_sdk.ingest.live_declaration import source_meta
-from agent_connector_sdk.ingest.sources import IngestSourceDeclaration, IngestSourceSpec
-
 CONNECTOR = "scholarx-mcp"
 
-SOURCES = (
-    source_meta(
-        tool="scholarx_search",
-        source_id="scholarx-papers",
-        record_type="research_paper",
-        id_field="id",
-        cursor_field="published_date",
-        preset={
-            "doc_type": "research_paper",
-            "params_style": "args",
-        },
-        records_path="papers",
-        server="scholarx-mcp",
-        text_field="abstract",
-        title_field="title",
-    ),
-)
+# Paper streams are declared on their served tools only when a host supplies
+# authorized tenant, provider, quota and query bindings. The former declaration
+# named an unserved legacy tool and could not be ingested safely.
+SOURCES = ()
 
 SCHEMA_MAPPINGS = {
     "Paper": {
@@ -82,20 +66,3 @@ RESOURCES = (
         "name": "ResearchCategory",
     },
 )
-
-
-def declaration() -> IngestSourceDeclaration:
-    """The declaration the server assembles from this module."""
-    specs = []
-    for item in SOURCES:
-        for entry in item["connector_sources"]:
-            body = {k: v for k, v in entry.items() if k not in ("tool", "mapping")}
-            specs.append(IngestSourceSpec.model_validate({**body, "tools": (entry["tool"],)}))
-    return IngestSourceDeclaration.model_validate(
-        {
-            "connector": CONNECTOR,
-            "sources": specs,
-            "schema_mappings": SCHEMA_MAPPINGS,
-            "resources": RESOURCES,
-        }
-    )

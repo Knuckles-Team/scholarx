@@ -15,7 +15,7 @@
         "c98cfa5180a9"
       ],
       "verified_by": [
-        "tests/test_default_content_surfaces.py:15"
+        "tests/test_default_content_surfaces.py:16"
       ]
     }
   ]

@@ -2,9 +2,10 @@
   "schema_version": 2,
   "spec_id": "CONN-SCHOLARX-API-COVERAGE",
   "owner_repo": "scholarx",
-  "delivery_state": "VERIFIED",
+  "delivery_state": "SPECIFIED",
   "requirement_ids": [
-    "CONN-SCHOLARX-API-COVERAGE-R001"
+    "CONN-SCHOLARX-API-COVERAGE-R001",
+    "CONN-SCHOLARX-API-COVERAGE-R002"
   ],
   "requirements": [
     {
@@ -17,6 +18,13 @@
       "verified_by": [
         "tests/test_operation_tools.py:10"
       ]
+    },
+    {
+      "id": "CONN-SCHOLARX-API-COVERAGE-R002",
+      "title": "Shared paper search source",
+      "delivery_state": "SPECIFIED",
+      "landed_in": [],
+      "verified_by": []
     }
   ]
 }

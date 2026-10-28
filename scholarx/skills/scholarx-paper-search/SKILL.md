@@ -12,7 +12,7 @@ description: >-
 license: MIT
 tags: [scholarx, research, papers, arxiv, search, mcp]
 metadata:
-  author: Genius
+  author: Repository Maintainers
   version: '0.1.0'
 ---
 # ScholarX Paper Search

@@ -10,7 +10,7 @@ license: MIT
 tags: [scholarx, development, connector, test, gates]
 tier: repository
 metadata:
-  author: Genius
+  author: Repository Maintainers
   version: '0.1.0'
 ---
 

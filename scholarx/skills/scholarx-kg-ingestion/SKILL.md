@@ -12,7 +12,7 @@ description: >-
 license: MIT
 tags: [scholarx, research, knowledge-graph, ingestion, ontology, mcp]
 metadata:
-  author: Genius
+  author: Repository Maintainers
   version: '0.1.0'
 ---
 # ScholarX Knowledge-Graph Ingestion

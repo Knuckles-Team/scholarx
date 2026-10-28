@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastmcp import Client
@@ -16,13 +17,10 @@ pytestmark = pytest.mark.spec("CONN-SCHOLARX-CONNECTOR-CONTENT-R001")
 
 
 def _server():
-    namespace = {"__name__": PACKAGE + ".mcp_server"}
-    exec(
-        "from agent_connector_sdk.mcp.server import create_mcp_server\n"
-        "result = create_mcp_server('scholarx-mcp', version='0', command_args=[])",
-        namespace,
-    )
-    return namespace["result"][1]
+    from scholarx.mcp_server import get_mcp_instance
+
+    with patch("sys.argv", ["scholarx-mcp"]):
+        return get_mcp_instance()[1]
 
 
 async def _listings():

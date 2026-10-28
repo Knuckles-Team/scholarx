@@ -635,13 +635,17 @@ def register_prompts(mcp):
 # ── MCP Server Factory ──────────────────────────────────────────────────────
 
 
-def get_mcp_instance():
+def get_mcp_instance(*, paper_service=None, paper_document_service=None, paper_ingest_streams=()):
     """Create and configure the MCP server instance."""
+    from pathlib import Path
+
+    from agent_connector_sdk.mcp.content import ConnectorContent
     from agent_connector_sdk.mcp.server import create_mcp_server
 
     args, mcp, middlewares = create_mcp_server(
         name="ScholarX MCP",
         version=__version__,
+        content=ConnectorContent.for_package("scholarx", Path(__file__).parent, __version__),
         instructions=(
             "Universal research paper search and analysis across arXiv, PMC, "
             "bioRxiv, medRxiv, PsyArXiv, OSF, and Semantic Scholar. "
@@ -652,18 +656,47 @@ def get_mcp_instance():
 
     from scholarx.api_client import ScholarXClient
 
+    registrars = [
+        register_search_tools,
+        register_discovery_tools,
+        register_storage_tools,
+        register_operation_tools,
+        register_kg_tools,
+    ]
+    if paper_service is not None:
+
+        def register_paper_tools(server):
+            from agent_connector_sdk.adapters.paper_tool import register_paper_search_tool
+
+            register_paper_search_tool(server, paper_service)
+
+        registrars.append(register_paper_tools)
+    if paper_document_service is not None:
+
+        def register_document_tool(server):
+            from agent_connector_sdk.adapters.paper_tool import register_paper_download_tool
+
+            register_paper_download_tool(server, paper_document_service)
+
+        registrars.append(register_document_tool)
+    if paper_ingest_streams:
+        if paper_service is None:
+            raise ValueError("paper streams require an authorized paper service")
+
+        def register_ingest_tools(server):
+            from agent_connector_sdk.adapters.paper_ingest_tool import register_paper_provider_stream
+
+            for name, query in paper_ingest_streams:
+                register_paper_provider_stream(server, paper_service, query, name=name, connector="scholarx-mcp")
+
+        registrars.append(register_ingest_tools)
+
     register_tool_surface(
         mcp,
         client_cls=ScholarXClient,
         get_client=_get_client,
         service="scholarx",
-        registrars=[
-            register_search_tools,
-            register_discovery_tools,
-            register_storage_tools,
-            register_operation_tools,
-            register_kg_tools,
-        ],
+        registrars=registrars,
     )
 
     register_prompts(mcp)
