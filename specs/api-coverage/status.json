@@ -25,9 +25,11 @@
       "delivery_state": "VERIFIED",
       "landed_in": [
         "5455acb5aa5c",
-        "c1d689fdf9a9"
+        "c1d689fdf9a9",
+        "ebf55417e6c3"
       ],
       "verified_by": [
+        "tests/test_paper_auth.py:25",
         "tests/test_paper_source_contract.py:24"
       ]
     }
