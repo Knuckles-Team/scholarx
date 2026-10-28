@@ -18,3 +18,8 @@ are explicit refusals. The existing fuzzy aggregate search remains separate.
 The host supplies authorization and storage admission for the document tool.
 Only host-configured provider streams advertise live source metadata. The
 connector must be certified against the authenticated host before deployment.
+
+The host may bind paper access to the verified MCP bearer identity. It chooses
+the tenant claim and required scopes. Missing identity, session, tenant or
+scope refuses access. A query tenant must match the verified token's tenant.
+This check does not select a credential or grant storage access.
