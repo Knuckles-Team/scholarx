@@ -32,3 +32,6 @@ host's actual live source declaration as a connector pack. Three separate
 runner processes accept a page, observe an upstream failure, and resume. The
 test checks the unchanged failure checkpoint and both graph records. It skips
 when the test environment has no EG server binary.
+The same authenticated host test also denies a different tenant before storage
+admission, then saves an authorized document through a real HTTP provider and
+checks its bytes and redacted receipt before restarting the graph runner.

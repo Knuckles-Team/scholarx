@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 import uvicorn
+from agent_connector_sdk.adapters.paper_download import DocumentAdmission
 from agent_connector_sdk.adapters.paper_models import DocumentOffer, PaperQuery
 from agent_connector_sdk.adapters.paper_quota import PaperQuotaPolicy
 from agent_connector_sdk.http.options import HttpClientOptions
@@ -29,7 +30,7 @@ TOKEN = "synthetic-runner-token-" + "a" * 32  # sanitizer:ignore - synthetic fix
 CONNECTOR = "scholarx-mcp"
 
 
-async def start(url):
+async def start(url, document_url, storage_root):
     engine = await scoped_client(["*"])
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -39,7 +40,15 @@ async def start(url):
 
     async def document_authority(request, ctx):
         authority_calls.append(request)
-        return None
+        return DocumentAdmission(
+            root=storage_root,
+            http=HttpClientOptions(
+                base_url=document_url, pin_egress=True, allow_loopback=True, retry=RetryPolicy(max_attempts=1)
+            ),
+            quota=PaperQuotaPolicy(
+                provider_id="arxiv", credential_group="runner-arxiv", policy_revision="v1", minimum_spacing_ns=1
+            ),
+        )
 
     query = PaperQuery(tenant=TENANT, query="graph", provider_ids=("arxiv",), schema_revision="v1", page_bound=1)
     _, mcp = build_paper_mcp(
@@ -73,13 +82,31 @@ async def start(url):
                     "paper_id": "paper",
                     "revision": None,
                     "offer": DocumentOffer(
-                        provider_id="arxiv", url=url + "/document", media_type="text/html"
+                        provider_id="arxiv", url=document_url + "/document", media_type="text/html"
                     ).model_dump(mode="json"),
                 }
             },
         )
         assert denied.structured_content["reason"] == "unauthorized"
         assert authority_calls == []
+        accepted = await client.call_tool(
+            "paper_download",
+            {
+                "request": {
+                    "tenant": TENANT,
+                    "paper_id": "paper",
+                    "revision": None,
+                    "offer": DocumentOffer(
+                        provider_id="arxiv", url=document_url + "/document?secret=fixture", media_type="text/html"
+                    ).model_dump(mode="json"),
+                }
+            },
+        )
+        receipt = accepted.structured_content["receipt"]
+        assert accepted.structured_content["reason"] is None
+        assert (storage_root / receipt["artifact_ref"]).read_bytes() == b"<html><body>Research</body></html>"
+        assert "secret" not in receipt["source_url"]
+        assert len(authority_calls) == 1
         resource = await client.read_resource("connector://resources")
         body = resource[0].text.encode()
     context = _mutation_context().model_copy(update={"tenant_id": TENANT})
@@ -167,15 +194,22 @@ def test_authenticated_cli_process_restart(live_ingest, monkeypatch, tmp_path): 
         return f'<feed xmlns="http://www.w3.org/2005/Atom"><entry><id>http://arxiv.org/abs/{paper}v1</id><title>Graph paper</title></entry></feed>'.encode()
 
     headers = {"Content-Type": "application/atom+xml"}
-    with ScriptedHttpServer(
-        ScriptedResponse(body=feed("1234.5678"), headers=headers),
-        ScriptedResponse(status=503),
-        ScriptedResponse(status=503),
-        ScriptedResponse(status=503),
-        ScriptedResponse(body=feed("9876.5432"), headers=headers),
-    ) as provider:
+    with (
+        ScriptedHttpServer(
+            ScriptedResponse(body=b"<html><body>Research</body></html>", headers={"Content-Type": "text/html"})
+        ) as document,
+        ScriptedHttpServer(
+            ScriptedResponse(body=feed("1234.5678"), headers=headers),
+            ScriptedResponse(status=503),
+            ScriptedResponse(status=503),
+            ScriptedResponse(status=503),
+            ScriptedResponse(body=feed("9876.5432"), headers=headers),
+        ) as provider,
+    ):
         loop = live_ingest._loop
-        engine, server, task, port = asyncio.run_coroutine_threadsafe(start(provider.base_url), loop).result(30)
+        engine, server, task, port = asyncio.run_coroutine_threadsafe(
+            start(provider.base_url, document.base_url, tmp_path), loop
+        ).result(30)
         try:
             config = tmp_path / "runner.yml"
             config.write_text(
@@ -206,6 +240,7 @@ def test_authenticated_cli_process_restart(live_ingest, monkeypatch, tmp_path): 
             second = worker()
             assert second.returncode == 0, second.stderr
             assert "start=1" in provider.requests[4].path
+            assert len(document.requests) == 1
         finally:
             rows = asyncio.run_coroutine_threadsafe(finish(engine, server, task), loop).result(30)
         nodes = [row["n"] for row in rows if row["n"].get("source_stream") == "paper_arxiv_ingest"]
