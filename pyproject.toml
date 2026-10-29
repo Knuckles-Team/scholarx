@@ -30,12 +30,6 @@ test = [
 scholarx = "scholarx.cli:cli"
 scholarx-mcp = "scholarx.mcp_server:mcp_server"
 
-[project.entry-points."agent_connector_sdk.skill_providers"]
-scholarx = "scholarx.skills"
-
-[project.entry-points."agent_connector_sdk.ontology_providers"]
-scholarx = "scholarx.ontology"
-
 # The one declared connector identity: the fleet name (SCION-CONNECTOR-CONTROL-R071).
 [project.entry-points."agent_connector_sdk.connector"]
 scholarx-mcp = "scholarx"
