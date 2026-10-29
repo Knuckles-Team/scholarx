@@ -81,4 +81,3 @@ RESOURCES = (
         "name": "ResearchCategory",
     },
 )
-

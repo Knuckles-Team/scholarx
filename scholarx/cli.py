@@ -12,7 +12,6 @@ Provides a rich terminal interface for:
 from __future__ import annotations
 
 import argparse
-from importlib.metadata import version as _distribution_version
 import asyncio
 import json
 import os
@@ -22,6 +21,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from importlib.metadata import version as _distribution_version
 from pathlib import Path
 from typing import Any
 

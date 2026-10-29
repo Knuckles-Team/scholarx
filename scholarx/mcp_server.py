@@ -9,7 +9,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 
-from agent_connector_sdk.config import load_config, setting
+from agent_connector_sdk.config import load_config
 from agent_connector_sdk.mcp.action_dispatch import resolve_action
 from agent_connector_sdk.mcp.concurrency import run_blocking
 from fastmcp import Context
