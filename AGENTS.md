@@ -94,7 +94,7 @@ scholarx status                                 # Show stored paper library
 
 # Entry Points
 # scholarx       → scholarx.cli:cli
-# scholarx-mcp   → scholarx.mcp_server:mcp_server
+# scholarx-mcp   → agent_connector_sdk.cli:serve
 # scholarx-agent → scholarx.agent_server:agent_server
 
 # Testing

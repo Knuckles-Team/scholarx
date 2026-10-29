@@ -21,6 +21,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from importlib.metadata import version as _distribution_version
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +40,7 @@ from rich.table import Table
 
 console = Console()
 
-__version__ = "0.4.1"
+_VERSION = _distribution_version("scholarx")
 
 # ── Default Relevance Taxonomy ──────────────────────────────────────────────
 
@@ -364,7 +365,7 @@ def _load_scan_taxonomy(args: argparse.Namespace) -> dict[str, Any]:
 def _print_scan_header(args: argparse.Namespace, categories: list[str], output_dir: Path) -> None:
     console.print(
         Panel.fit(
-            f"[bold cyan]ScholarX Research Scanner v{__version__}[/bold cyan]\n"
+            f"[bold cyan]ScholarX Research Scanner v{_VERSION}[/bold cyan]\n"
             f"Query: [green]{args.query}[/green]\n"
             f"Categories: [yellow]{', '.join(categories)}[/yellow]\n"
             f"Max results: [blue]{args.max_results}[/blue]\n"
