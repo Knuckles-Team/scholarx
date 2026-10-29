@@ -28,11 +28,11 @@ test = [
 
 [project.scripts]
 scholarx = "scholarx.cli:cli"
-scholarx-mcp = "scholarx.mcp_server:mcp_server"
+scholarx-mcp = "agent_connector_sdk.cli:serve"
 
 # The one declared connector identity: the fleet name (SCION-CONNECTOR-CONTROL-R071).
 [project.entry-points."agent_connector_sdk.connector"]
-scholarx-mcp = "scholarx"
+scholarx-mcp = "scholarx:connector"
 
 [tool.uv.workspace]
 members = ["."]

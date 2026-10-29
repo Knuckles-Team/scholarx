@@ -7,20 +7,15 @@ and storage tools via the standard agent-connector-sdk MCP server factory.
 
 import asyncio
 import logging
-import sys
 from dataclasses import dataclass
-from importlib.metadata import version as _distribution_version
 
 from agent_connector_sdk.config import load_config, setting
 from agent_connector_sdk.mcp.action_dispatch import resolve_action
 from agent_connector_sdk.mcp.concurrency import run_blocking
-from agent_connector_sdk.mcp.tool_surface import register_tool_surface
 from fastmcp import Context
 from pydantic import Field
 
 load_config()
-
-__version__ = _distribution_version("scholarx")
 
 # Wall budget for an inline single-paper download before it is handed to the
 # background queue. Kept well under the MCP child-call timeout so a slow source
@@ -632,59 +627,6 @@ def register_prompts(mcp):
         )
 
 
-# ── MCP Server Factory ──────────────────────────────────────────────────────
-
-
-def get_mcp_instance():
-    """Create and configure the MCP server instance."""
-    from agent_connector_sdk.mcp.server import create_mcp_server
-
-    args, mcp, middlewares = create_mcp_server(
-        name="ScholarX MCP",
-        version=__version__,
-        instructions=(
-            "Universal research paper search and analysis across arXiv, PMC, "
-            "bioRxiv, medRxiv, PsyArXiv, OSF, and Semantic Scholar. "
-            "Use search tools to find papers, discovery tools to explore "
-            "recent publications, and storage tools to download full PDFs."
-        ),
-    )
-
-    from scholarx.api_client import ScholarXClient
-
-    register_tool_surface(
-        mcp,
-        client_cls=ScholarXClient,
-        get_client=_get_client,
-        service="scholarx",
-        registrars=[
-            register_search_tools,
-            register_discovery_tools,
-            register_storage_tools,
-            register_operation_tools,
-            register_kg_tools,
-        ],
-    )
-
-    register_prompts(mcp)
-
-    return args, mcp
-
-
-def mcp_server():
-    """MCP server entry point."""
-    print(f"ScholarX MCP v{__version__}", file=sys.stderr)
-    args, mcp = get_mcp_instance()
-
-    transport = getattr(args, "transport", setting("TRANSPORT", "stdio"))
-    host = getattr(args, "host", setting("HOST", "127.0.0.1"))
-    port = int(getattr(args, "port", setting("PORT", "9600")))
-
-    if transport == "stdio":
-        mcp.run(transport="stdio")
-    else:
-        mcp.run(transport="streamable-http", host=host, port=port)
-
-
-if __name__ == "__main__":
-    mcp_server()
+def register_prompt_surface(context):
+    """Registration hook: serve the analysis prompts on the connector's server."""
+    register_prompts(context.server)

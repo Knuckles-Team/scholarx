@@ -3,11 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastmcp import Context
 
-from scholarx.mcp_server import (
-    get_mcp_instance,
-    mcp_server,
-    register_prompts,
-)
+from scholarx.mcp_server import register_prompts
 from scholarx.models import Paper, PaperSource, SearchResult, SourceStatus
 
 # ── Mock MCP Helper ─────────────────────────────────────────────────────────
@@ -618,38 +614,21 @@ def test_prompts():
     assert "Search bioRxiv, PMC for" in prompt2
 
 
-# ── Factory & Entrypoint Tests ──────────────────────────────────────────────
+# ── Declared connector ──────────────────────────────────────────────────────
 
 
 @pytest.mark.concept("SX-1.0")
-def test_get_mcp_instance():
-    with patch("agent_connector_sdk.mcp.server.create_mcp_server", return_value=(MagicMock(), MagicMock(), [])):
-        args, mcp = get_mcp_instance()
-        assert args is not None
-        assert mcp is not None
+def test_declared_connector_builds_server():
+    import asyncio
 
+    from agent_connector_sdk.connector import build_server
+    from fastmcp import Client
 
-@pytest.mark.concept("SX-1.0")
-def test_mcp_server_run_stdio():
-    mock_args = MagicMock()
-    mock_args.transport = "stdio"
+    _, mcp = build_server("scholarx", command_args=[])
 
-    mock_mcp = MagicMock()
+    async def _names():
+        async with Client(mcp) as client:
+            return {t.name for t in await client.list_tools()}
 
-    with patch("scholarx.mcp_server.get_mcp_instance", return_value=(mock_args, mock_mcp)):
-        mcp_server()
-        mock_mcp.run.assert_called_once_with(transport="stdio")
-
-
-@pytest.mark.concept("SX-1.0")
-def test_mcp_server_run_http():
-    mock_args = MagicMock()
-    mock_args.transport = "http"
-    mock_args.host = "1.2.3.4"
-    mock_args.port = "8888"
-
-    mock_mcp = MagicMock()
-
-    with patch("scholarx.mcp_server.get_mcp_instance", return_value=(mock_args, mock_mcp)):
-        mcp_server()
-        mock_mcp.run.assert_called_once_with(transport="streamable-http", host="1.2.3.4", port=8888)
+    names = asyncio.run(_names())
+    assert {"scholarx_search", "sx_search_get", "sx_storage_stored", "sx_info_sources"} <= names

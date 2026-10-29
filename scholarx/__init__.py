@@ -81,3 +81,42 @@ def __getattr__(name: str) -> Any:
 
 def __dir__() -> list[str]:
     return sorted(list(globals().keys()) + __all__)
+
+
+def _declare_connector():
+    """Build the declared connector (SDK-owned server bootstrap)."""
+    from agent_connector_sdk.connector import Connector
+
+    from scholarx.api_client import ScholarXClient
+    from scholarx.mcp_server import (
+        _get_client,
+        register_discovery_tools,
+        register_kg_tools,
+        register_operation_tools,
+        register_prompt_surface,
+        register_search_tools,
+        register_storage_tools,
+    )
+
+    return Connector(
+        api=ScholarXClient,
+        get_client=_get_client,
+        instructions=(
+            "Universal research paper search and analysis across arXiv, PMC, "
+            "bioRxiv, medRxiv, PsyArXiv, OSF, and Semantic Scholar. "
+            "Use search tools to find papers, discovery tools to explore "
+            "recent publications, and storage tools to download full PDFs."
+        ),
+        tool_registry=(
+            ("search", "SEARCHTOOL", register_search_tools),
+            ("discovery", "DISCOVERYTOOL", register_discovery_tools),
+            ("storage", "STORAGETOOL", register_storage_tools),
+            ("operation", "OPERATIONTOOL", register_operation_tools),
+            ("kg", "KGTOOL", register_kg_tools),
+        ),
+        extra_registrations=(register_prompt_surface,),
+    )
+
+
+connector = _declare_connector()
+__all__.append("connector")
