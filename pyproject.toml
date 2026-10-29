@@ -11,7 +11,7 @@ license = { text = "MIT" }
 requires-python = ">=3.12, <3.15"
 authors = [{ name = "Repository Maintainers", email = "maintainers@knuckles.team" }]
 dependencies = [
-    "agent-connector-sdk[mcp]>=0.4.1,<1.0.0",
+    "scion-sdk[mcp]>=0.5.9,<0.6.0",
     "httpx>=0.28.1",
     "python-dotenv>=1.2.4",
     "Levenshtein>=0.27.5",
@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["agent-connector-sdk[mcp]>=0.4.1,<1.0.0"]
+mcp = ["scion-sdk[mcp]>=0.5.9,<0.6.0"]
 all = ["scholarx[mcp]"]
 test = [
     "pytest-xdist>=3.8.0","pytest>=9.1.1", "pytest-asyncio>=1.4.0", "pytest-cov>=7.1.0", "respx>=0.23.1"]
@@ -36,7 +36,7 @@ scholarx = "scholarx.skills"
 [project.entry-points."agent_connector_sdk.ontology_providers"]
 scholarx = "scholarx.ontology"
 
-# The one declared connector identity: the fleet name (SDK-CONNECTOR-CONTROL-R071).
+# The one declared connector identity: the fleet name (SCION-CONNECTOR-CONTROL-R071).
 [project.entry-points."agent_connector_sdk.connector"]
 scholarx-mcp = "scholarx"
 
