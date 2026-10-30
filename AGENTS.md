@@ -25,7 +25,7 @@ Tool-neutral rules for any AI agent or human working in this repository. This bl
 
 ## Tech Stack & Architecture
 - Language/Version: Python 3.11+
-- Core Libraries: `agent-connector-sdk`, `fastmcp`, `pydantic`, `httpx`, `rich`
+- Core Libraries: `scion-sdk`, `fastmcp`, `pydantic`, `httpx`, `rich`
 - Key principles: Per-source rate limiting, 3-tier deduplication, full paper storage, existing KG node types.
 - Architecture:
     - `cli.py`: Rich CLI with progress bars for scan/status commands (CONCEPT:SX-OS.config.sx).
@@ -94,7 +94,7 @@ scholarx status                                 # Show stored paper library
 
 # Entry Points
 # scholarx       → scholarx.cli:cli
-# scholarx-mcp   → agent_connector_sdk.cli:serve
+# scholarx-mcp   → scion_sdk.cli:serve
 # scholarx-agent → scholarx.agent_server:agent_server
 
 # Testing
@@ -140,10 +140,10 @@ scholarx/
 
 ## Code Style & Conventions
 **Always:**
-- Use `agent-connector-sdk` for common patterns (e.g., `create_mcp_server`, `create_graph_agent_server`).
+- Use `scion-sdk` for common patterns (e.g., `create_mcp_server`, `create_graph_agent_server`).
 - Define models using Pydantic with descriptive docstrings.
 - Use per-source rate limiting via the `PaperProvider` base class.
-- Lazy-import agent-connector-sdk KG types inside functions (they're optional deps).
+- Lazy-import scion-sdk KG types inside functions (they're optional deps).
 
 **Good example:**
 ```python
@@ -182,7 +182,7 @@ for paper in result.papers:
 **Never do:**
 - Commit `.env` files or API keys.
 - Bypass per-source rate limiting.
-- Modify `agent-connector-sdk` models from within this package.
+- Modify `scion-sdk` models from within this package.
 
 ## Testing with Timeout
 
@@ -314,7 +314,7 @@ alone).
 Working in parallel with other sessions/worktrees? **Reserve a concept id before you write its `CONCEPT:` marker** so two sessions never collide:
 
 ```bash
-agent-connector-sdk --json concept reserve --ns EG-KG.compute.backend   # or a package prefix, e.g. KEY
+scion-sdk --json concept reserve --ns EG-KG.compute.backend   # or a package prefix, e.g. KEY
 ```
 
 Full protocol (ledger, merge=union, reconcile, MCP/REST): <https://knuckles-team.github.io/agent-connector-sdk/concept_coordination/>
@@ -345,14 +345,14 @@ is what Dependabot flags. Rules:
 ## Upstream currency edict — target the newest release; a pin is a hypothesis, not a fact (READ BEFORE capping, deferring, or opt-in-gating an upgrade)
 
 This governs how this repository treat **other people's** releases, deprecations, and version caps in
-this repo (fleet-wide edict, propagated from `agent-connector-sdk/AGENTS.md`).
+this repo (fleet-wide edict, propagated from `scion-sdk/AGENTS.md`).
 
 1. **Latest by default.** Target the newest upstream release -- including a pre-release
    where the ecosystem has already moved onto it. Sitting on an old major because the
    upgrade is work is not a reason to defer it.
 2. **A conservative upstream pin is a hypothesis, not a fact -- test it, don't inherit
    it.** Upstream maintainers cap defensively (an unreleased major, an untested surface)
-   as often as they cap for a known break. Worked example (from `agent-connector-sdk`):
+   as often as they cap for a known break. Worked example (from `scion-sdk`):
    `pydantic-ai-slim` 2.18.0 declared `fastmcp-slim[client]>=3.3.0` with no upper bound;
    2.19.0 added `<4` purely as a defensive guard while fastmcp 4 was still pre-release --
    not because of an observed incompatibility. Blocking an upgrade on that kind of cap

@@ -2,18 +2,18 @@
 """ScholarX MCP Server.
 
 Thin MCP wrapper over the ScholarX API client. Provides search, discovery,
-and storage tools via the standard agent-connector-sdk MCP server factory.
+and storage tools via the standard scion-sdk MCP server factory.
 """
 
 import asyncio
 import logging
 from dataclasses import dataclass
 
-from agent_connector_sdk.config import load_config
-from agent_connector_sdk.mcp.action_dispatch import resolve_action
-from agent_connector_sdk.mcp.concurrency import run_blocking
 from fastmcp import Context
 from pydantic import Field
+from scion_sdk.config import load_config
+from scion_sdk.mcp.action_dispatch import resolve_action
+from scion_sdk.mcp.concurrency import run_blocking
 
 load_config()
 
@@ -599,11 +599,11 @@ def register_prompts(mcp):
     """Register analysis prompts for the genius-agent."""
 
     @mcp.prompt()
-    def agent_connector_sdk_enhancement_scan() -> str:
-        """Scan recent CS/AI papers for agent-connector-sdk enhancement opportunities."""
+    def scion_sdk_enhancement_scan() -> str:
+        """Scan recent CS/AI papers for scion-sdk enhancement opportunities."""
         return (
             "Search for recent papers in cs.AI, cs.MA, cs.SE, cs.LG, cs.CL.\n"
-            "For each paper, evaluate against agent-connector-sdk concepts (AU-001 through AU-047):\n"
+            "For each paper, evaluate against scion-sdk concepts (AU-001 through AU-047):\n"
             "1. Primary contribution type (theoretical/empirical/artifact/methodology)\n"
             "2. Gap addressed relative to existing AU concepts\n"
             "3. Theoretical relationship (extends/contradicts/complements)\n"

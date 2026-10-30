@@ -852,7 +852,7 @@ def _resolve_analysis_targets(args: argparse.Namespace, packages_root: Path) -> 
     else:
         agents_root = packages_root
         targets = [
-            agents_root / "agent-connector-sdk",
+            agents_root / "scion-sdk",
             agents_root / "agents" / "scholarx",
         ]
         for sub in ["agent-terminal-ui", "agent-webui"]:
