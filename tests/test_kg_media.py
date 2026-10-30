@@ -10,7 +10,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-from agent_connector_sdk.ingest import KnowledgeIngest
+from scion_sdk.ingest import KnowledgeIngest
 
 from scholarx.kg_media import ingest_pdf
 from scholarx.models import Paper, PaperSource

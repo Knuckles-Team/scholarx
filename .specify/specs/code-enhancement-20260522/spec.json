@@ -48,7 +48,7 @@
     },
     {
       "id": "FR-002",
-      "description": "Minor update: agent-connector-sdk 0.6.2 (installed) -> 0.16.0",
+      "description": "Minor update: scion-sdk 0.6.2 (installed) -> 0.16.0",
       "testable": true
     },
     {

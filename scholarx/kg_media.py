@@ -3,7 +3,7 @@
 CONCEPT:AU-KG.ingest.list-durable-media. When a live epistemic-graph engine is reachable, a
 downloaded paper PDF is stored as a content-addressed **blob** with a ``:MediaAsset`` graph
 node (carrying the paper's metadata) via the SDK's knowledge-ingest facade
-(:mod:`agent_connector_sdk.ingest`) — the same ``ChangeSet.media`` path every connector's blob
+(:mod:`scion_sdk.ingest`) — the same ``ChangeSet.media`` path every connector's blob
 ingestion goes through. This makes the raw PDF bytes — not just a filesystem path — durable,
 deduped, and queryable inside the knowledge graph, and lets the twin :mod:`scholarx.kg_ingest`
 typed ``:Paper`` node point at it via ``:hasFullText``.
@@ -19,7 +19,7 @@ import logging
 import os
 from typing import Any
 
-from agent_connector_sdk.ingest import (
+from scion_sdk.ingest import (
     ChangeSet,
     IngestBinding,
     IngestError,

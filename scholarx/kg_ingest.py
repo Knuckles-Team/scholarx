@@ -7,9 +7,9 @@ fetches into the ONE epistemic-graph knowledge graph as **typed OWL nodes** (``:
 its abstract as searchable ``text`` — as the **document** modality in the same node. Raw PDF
 bytes ride the **blob** path in :mod:`scholarx.kg_media`.
 
-The write path is the SDK's knowledge-ingest facade (:mod:`agent_connector_sdk.ingest`), which
+The write path is the SDK's knowledge-ingest facade (:mod:`scion_sdk.ingest`), which
 submits a typed ``ChangeSet`` through the generated epistemic-graph ``SourceIngest`` request/
-receipt types. Engine failures are explicit (:class:`~agent_connector_sdk.ingest.IngestError`)
+receipt types. Engine failures are explicit (:class:`~scion_sdk.ingest.IngestError`)
 and partial writes are never acknowledged. Node ids follow ``scholarx:<class>:<externalId>``
 and ``node_type`` matches the classes federated by ``scholarx.ontology``.
 """
@@ -20,7 +20,7 @@ import logging
 import re
 from typing import Any
 
-from agent_connector_sdk.ingest import (
+from scion_sdk.ingest import (
     ChangeSet,
     Document,
     Entity,
@@ -229,7 +229,7 @@ async def ingest_papers(
     """Map ScholarX papers → typed nodes and ingest them in one txn.
 
     Best-effort: returns ``{"nodes":n, "edges":m}`` or ``None`` (nothing to write).
-    Raises :class:`~agent_connector_sdk.ingest.IngestError` on an engine failure — callers
+    Raises :class:`~scion_sdk.ingest.IngestError` on an engine failure — callers
     that need "never raises" semantics (e.g. an auto-ingest hook on the search path) should
     catch it themselves, same as before.
     """

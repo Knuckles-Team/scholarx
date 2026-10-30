@@ -13,7 +13,7 @@ description: >-
 license: MIT
 tags: [scholarx, research, papers, pdf, storage, mcp]
 metadata:
-  author: Genius
+  author: Knuckles-Team
   version: '0.1.0'
 ---
 # ScholarX Paper Library

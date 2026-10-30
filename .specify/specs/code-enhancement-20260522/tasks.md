@@ -5,7 +5,7 @@ Skipped informational: 5
 
 - [ ] [P] **T001** [Dependency Audit] Minor update: scholarx 0.4.1 (installed) -> 0.11.0
   - Priority: P3-Low | Effort: Small
-- [ ] [P] **T002** [Dependency Audit] Minor update: agent-connector-sdk 0.6.2 (installed) -> 0.16.0
+- [ ] [P] **T002** [Dependency Audit] Minor update: scion-sdk 0.6.2 (installed) -> 0.16.0
   - Priority: P3-Low | Effort: Small
 - [ ] [P] **T003** [Dependency Audit] Minor update: pytest-xdist 3.6.0 (constraint — not installed) -> 3.8.0
   - Priority: P3-Low | Effort: Small

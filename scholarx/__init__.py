@@ -85,7 +85,7 @@ def __dir__() -> list[str]:
 
 def _declare_connector():
     """Build the declared connector (SDK-owned server bootstrap)."""
-    from agent_connector_sdk.connector import Connector
+    from scion_sdk.connector import Connector
 
     from scholarx.api_client import ScholarXClient
     from scholarx.mcp_server import (

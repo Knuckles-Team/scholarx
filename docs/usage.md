@@ -21,7 +21,7 @@ Example agent prompts that map onto these tools:
 - *"List the categories available on arXiv"* → `discovery` (`categories`)
 - *"Download the PDF for arXiv paper `2401.00001` and store it"* → `storage` (`download`)
 
-Two analysis prompts ship with the server: `agent_connector_sdk_enhancement_scan` and
+Two analysis prompts ship with the server: `scion_sdk_enhancement_scan` and
 `biomimicry_innovation_scan`.
 
 ## As a Python API
