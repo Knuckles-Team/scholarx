@@ -21,12 +21,12 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import httpx
-from agent_connector_sdk.http.client import create_async_http_client
-from agent_connector_sdk.http.options import HttpClientOptions
+from scion_sdk.http.client import create_async_http_client
+from scion_sdk.http.options import HttpClientOptions
 
 logger = logging.getLogger(__name__)
 
-from agent_connector_sdk import paths
+from scion_sdk import paths
 
 from .models import Paper
 

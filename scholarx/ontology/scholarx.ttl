@@ -102,7 +102,7 @@
     rdfs:label "ScholarX Research-Paper Ontology" ;
     rdfs:comment """ScholarX research-paper model — papers and their preprint/journal
     source repositories, subject categories, authors (shared :Person), abstracts and
-    full-text PDFs (shared :Document / :AssetOccurrence) — federated into the agent-connector-sdk
+    full-text PDFs (shared :Document / :AssetOccurrence) — federated into the scion-sdk
     knowledge-graph hub across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF and
     Semantic Scholar.""" .
 

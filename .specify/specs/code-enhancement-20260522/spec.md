@@ -15,7 +15,7 @@
 ## Functional Requirements
 
 - **FR-001**: Minor update: scholarx 0.4.1 (installed) -> 0.11.0
-- **FR-002**: Minor update: agent-connector-sdk 0.6.2 (installed) -> 0.16.0
+- **FR-002**: Minor update: scion-sdk 0.6.2 (installed) -> 0.16.0
 - **FR-003**: Minor update: pytest-xdist 3.6.0 (constraint — not installed) -> 3.8.0
 - **FR-004**: Minor update: pypdf 6.10.2 (installed) -> 6.12.1
 - **FR-005**: 1 functions exceed 200 lines (actionable refactoring targets): run_scan (300L)

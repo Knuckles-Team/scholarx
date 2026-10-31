@@ -273,7 +273,7 @@ async def test_sx_storage_basic_actions(mock_client):
         assert res == {"downloads": {"job-123": {"status": "running"}}}
 
     # Unknown action now raises a rich did-you-mean error pointing at list_actions
-    # (standardized via the shared agent-connector-sdk action-discovery helper).
+    # (standardized via the shared scion-sdk action-discovery helper).
     with pytest.raises(ValueError, match="list_actions"):
         await call_sx_storage(action="nonsense")
 
@@ -604,10 +604,10 @@ def test_prompts():
     mcp = MockMCP()
     register_prompts(mcp)
 
-    assert "agent_connector_sdk_enhancement_scan" in mcp.prompts
+    assert "scion_sdk_enhancement_scan" in mcp.prompts
     assert "biomimicry_innovation_scan" in mcp.prompts
 
-    prompt1 = mcp.prompts["agent_connector_sdk_enhancement_scan"]()
+    prompt1 = mcp.prompts["scion_sdk_enhancement_scan"]()
     assert "Search for recent papers" in prompt1
 
     prompt2 = mcp.prompts["biomimicry_innovation_scan"]()
@@ -621,8 +621,8 @@ def test_prompts():
 def test_declared_connector_builds_server():
     import asyncio
 
-    from agent_connector_sdk.connector import build_server
     from fastmcp import Client
+    from scion_sdk.connector import build_server
 
     _, mcp = build_server("scholarx", command_args=[])
 

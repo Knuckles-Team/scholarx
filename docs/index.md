@@ -1,6 +1,6 @@
 # scholarx
 
-Universal Research Paper **API + MCP Server + Agent** for the agent-connector-sdk
+Universal Research Paper **API + MCP Server + Agent** for the scion-sdk
 ecosystem — one entry point for arXiv, PubMed Central, bioRxiv, medRxiv, PsyArXiv,
 OSF, and Semantic Scholar.
 
