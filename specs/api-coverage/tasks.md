@@ -7,3 +7,4 @@ Each task line reads `- [ ] T001 [P] [US1] <ID>-R012.4 description`. Tasks run p
 - [x] T001 [US1] CONN-SCHOLARX-API-COVERAGE-R001 Direct operation tools.
 - [ ] T002 [US2] CONN-SCHOLARX-API-COVERAGE-R002 Paper maintenance tool.
 - [ ] T003 [US3] CONN-SCHOLARX-API-COVERAGE-R003 Paper ingest job stages and admits.
+- [ ] T004 [US1] CONN-SCHOLARX-API-COVERAGE-R004 Adopt scion-sdk 0.10.0 import paths. Size: S, 1 PR, 30 minutes.
