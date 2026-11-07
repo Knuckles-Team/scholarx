@@ -42,6 +42,16 @@ No unknowns. Every row names its code and test; the caller chain of each row was
 
 `register_operation_tools` in `scholarx/mcp_server.py` registers direct tools for client operations that the action-routed tools do not expose: `sx_enabled_sources` (read-only), `sx_download_papers` and `sx_download_urls`. Each applies the same input limits as the routed download actions. The canonical API-parity baseline is recorded in `pyproject.toml` and is a measured gate threshold, not a claim of complete client-method coverage.
 
+### Adoption of scion-sdk 0.10.0 (CONN-SCHOLARX-API-COVERAGE-R004)
+
+- Owner. This repository, the import lines named in `CONN-SCHOLARX-API-COVERAGE-R004`. The paths belong to scion-sdk.
+- Cohesion. The import edits, the pin and the lock change together and sit in one change.
+- Dependency direction. The connector imports public modules of the SDK units; no import points to a private module.
+- Interface depth. The connector uses the public surface only.
+- Special cases. None. Every removed path takes the same replacement, with no alias.
+- State. None.
+- Environment. None. The pin is package metadata, not environment code.
+
 ## Phase 2: Task approach
 
 `tasks.md` holds one task per row, producer first. Rows that depend on none run in parallel. A task is checked when its `Spec:` trailer is on the default branch.
