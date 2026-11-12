@@ -56,7 +56,7 @@ best-effort automatically — this tool is the explicit, parameterized entry poi
 - `categories` — comma-separated category filters.
 - `max_results` — how many papers to fetch and ingest (1–100).
 
-### Ontology written (`http://knuckles.team/kg/scholarx`)
+### Ontology written (`https://knuckles-team.github.io/ontology/connector/scholarly-papers`)
 - Nodes: `:Paper` (id `scholarx:paper:<id>`), `:PaperSource` (`scholarx:source:<src>`),
   `:ResearchCategory` (`scholarx:category:<cat>`), shared `:Person` (`scholarx:person:<slug>`).
 - Links: `:publishedInSource`, `:hasCategory`, `:authoredBy`, `:hasFullText`.
