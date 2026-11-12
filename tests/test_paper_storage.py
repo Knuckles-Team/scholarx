@@ -59,7 +59,7 @@ async def test_download_paper_already_exists(temp_storage, sample_arxiv_paper):
     temp_storage._save_metadata(sample_arxiv_paper, pdf_file)
 
     # Download should return the existing path without initiating a download
-    with patch("scholarx.paper_storage.create_async_http_client") as mock_client_cls:
+    with patch("scholarx.paper_storage.build_http_client") as mock_client_cls:
         res = await temp_storage.download_paper(sample_arxiv_paper)
         assert res == pdf_file
         assert res.read_bytes() == b"existing content"
@@ -80,7 +80,7 @@ async def test_download_paper_success(temp_storage, sample_arxiv_paper):
 
     with (
         patch(
-            "scholarx.paper_storage.create_async_http_client",
+            "scholarx.paper_storage.build_http_client",
             return_value=mock_client,
         ),
         patch(
@@ -119,7 +119,7 @@ async def test_download_paper_http_error(temp_storage, sample_arxiv_paper):
 
     with (
         patch(
-            "scholarx.paper_storage.create_async_http_client",
+            "scholarx.paper_storage.build_http_client",
             return_value=mock_client,
         ),
         patch(

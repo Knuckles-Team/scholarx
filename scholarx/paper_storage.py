@@ -21,7 +21,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import httpx
-from scion_sdk.http.client import create_async_http_client
+from scion_sdk.http.client import build_http_client
 from scion_sdk.http.options import HttpClientOptions
 
 logger = logging.getLogger(__name__)
@@ -297,7 +297,7 @@ class PaperStorage:
                 base_url=f"{parts.scheme}://{parts.netloc}",
                 timeout=httpx.Timeout(120.0, connect=30.0),
             )
-            async with create_async_http_client(options) as client:
+            async with build_http_client(options, async_=True) as client:
                 async with client.stream("GET", current_url) as response:
                     redirect_url = _redirect_target(response, current_url)
                     if redirect_url is not None:

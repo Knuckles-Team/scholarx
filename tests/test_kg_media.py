@@ -1,4 +1,4 @@
-"""Native epistemic-graph PDF blob ingestion — Wire-First coverage.
+"""Native medulla PDF blob ingestion — Wire-First coverage.
 
 Exercises ``scholarx.kg_media.ingest_pdf`` with a fake SDK ingest transport (no engine
 required), asserting the stored media asset's mime type, name and paper-metadata properties.

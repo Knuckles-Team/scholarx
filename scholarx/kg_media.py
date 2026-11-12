@@ -1,6 +1,6 @@
-"""Native epistemic-graph blob ingestion for ScholarX full-text PDFs.
+"""Native medulla blob ingestion for ScholarX full-text PDFs.
 
-CONCEPT:AU-KG.ingest.list-durable-media. When a live epistemic-graph engine is reachable, a
+CONCEPT:AU-KG.ingest.list-durable-media. When a live medulla engine is reachable, a
 downloaded paper PDF is stored as a content-addressed **blob** with a ``:MediaAsset`` graph
 node (carrying the paper's metadata) via the SDK's knowledge-ingest facade
 (:mod:`scion_sdk.ingest`) — the same ``ChangeSet.media`` path every connector's blob
