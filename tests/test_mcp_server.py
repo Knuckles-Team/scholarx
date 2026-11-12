@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastmcp import Context
 
-from scholarx.mcp_server import register_prompts
 from scholarx.models import Paper, PaperSource, SearchResult, SourceStatus
 
 # ── Mock MCP Helper ─────────────────────────────────────────────────────────
@@ -49,9 +48,13 @@ async def call_sx_search(
 
     mcp = MockMCP()
     register_search_tools(mcp)
-    sx_search = mcp.tools["sx_search"]
-    return await sx_search(
-        action=action,
+    if action == "get":
+        return await mcp.tools["sx_search_get"](sources=sources, paper_id=paper_id, ctx=ctx)
+    if action == "author":
+        return await mcp.tools["sx_search_author"](author=author, max_results=max_results)
+    if action == "recent":
+        return await mcp.tools["sx_search_recent"](categories=categories, days=days, sources=sources)
+    return await mcp.tools["sx_search_search"](
         query=query,
         sources=sources,
         categories=categories,
@@ -59,8 +62,6 @@ async def call_sx_search(
         sort_by=sort_by,
         title=title,
         paper_id=paper_id,
-        author=author,
-        days=days,
         ctx=ctx,
     )
 
@@ -70,8 +71,9 @@ async def call_sx_info(action="sources", source="", ctx=None):
 
     mcp = MockMCP()
     register_discovery_tools(mcp)
-    sx_info = mcp.tools["sx_info"]
-    return await sx_info(action=action, source=source, ctx=ctx)
+    if action == "categories":
+        return await mcp.tools["sx_info_categories"](source=source)
+    return await mcp.tools["sx_info_sources"](ctx=ctx)
 
 
 async def call_sx_storage(action="stored", source="", paper_ids="", job_id="", ctx=None):
@@ -79,8 +81,18 @@ async def call_sx_storage(action="stored", source="", paper_ids="", job_id="", c
 
     mcp = MockMCP()
     register_storage_tools(mcp)
-    sx_storage = mcp.tools["sx_storage"]
-    return await sx_storage(action=action, source=source, paper_ids=paper_ids, job_id=job_id, ctx=ctx)
+    tools = mcp.tools
+    if action == "status":
+        return await tools["sx_storage_status"](job_id=job_id)
+    if action == "queue":
+        return await tools["sx_storage_queue"]()
+    if action == "download":
+        return await tools["sx_storage_download"](source=source, paper_ids=paper_ids, ctx=ctx)
+    if action == "download_url":
+        return await tools["sx_storage_download_url"](paper_ids=paper_ids)
+    if action == "bulk_download":
+        return await tools["sx_storage_bulk_download"](source=source, paper_ids=paper_ids)
+    return await tools["sx_storage_stored"]()
 
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
@@ -103,10 +115,10 @@ async def test_sx_search_get_paper(mock_client):
 
     # Test error when missing paper_id or source
     err1 = await call_sx_search(action="get")
-    assert err1 == {"error": "Both 'sources' and 'paper_id' required for 'get' action"}
+    assert err1 == {"error": "Both 'sources' and 'paper_id' required for sx_search_get"}
 
     err2 = await call_sx_search(action="get", sources="arxiv")
-    assert err2 == {"error": "Both 'sources' and 'paper_id' required for 'get' action"}
+    assert err2 == {"error": "Both 'sources' and 'paper_id' required for sx_search_get"}
 
     # Mock success get_paper
     mock_paper = Paper(id="arxiv:1234.5678", title="Sample Paper", authors=["Author One"], source=PaperSource.ARXIV)
@@ -133,7 +145,7 @@ async def test_sx_search_get_paper(mock_client):
 async def test_sx_search_author(mock_client):
     # Test error when author missing
     err = await call_sx_search(action="author")
-    assert err == {"error": "'author' is required for 'author' action"}
+    assert err == {"error": "'author' is required for sx_search_author"}
 
     # Test author search success
     mock_result = SearchResult(
@@ -252,7 +264,7 @@ async def test_sx_storage_basic_actions(mock_client):
 
     # Action "status" error
     err = await call_sx_storage(action="status")
-    assert err == {"error": "'job_id' required for 'status' action"}
+    assert err == {"error": "'job_id' required for 'sx_storage_status'"}
 
     # Action "status" not found
     mock_client.get_download_status = MagicMock(return_value=None)
@@ -272,18 +284,13 @@ async def test_sx_storage_basic_actions(mock_client):
         res = await call_sx_storage(action="queue")
         assert res == {"downloads": {"job-123": {"status": "running"}}}
 
-    # Unknown action now raises a rich did-you-mean error pointing at list_actions
-    # (standardized via the shared scion-sdk action-discovery helper).
-    with pytest.raises(ValueError, match="list_actions"):
-        await call_sx_storage(action="nonsense")
-
 
 @pytest.mark.concept("SX-1.0")
 @pytest.mark.asyncio
 async def test_sx_storage_download_already_exists(mock_client):
     # Test missing source or paper_ids
     err = await call_sx_storage(action="download")
-    assert err == {"error": "'source' and 'paper_ids' required for 'download' action"}
+    assert err == {"error": "'source' and 'paper_ids' required for 'sx_storage_download'"}
 
     # Mock storage listing to contain the paper already
     mock_client.storage.list_stored_papers = MagicMock(
@@ -327,7 +334,7 @@ async def test_sx_storage_download_new(mock_client):
 async def test_sx_storage_download_url(mock_client, tmp_path):
     # Test error when missing paper_ids
     err = await call_sx_storage(action="download_url")
-    assert err == {"error": "'paper_ids' required for 'download_url' action"}
+    assert err == {"error": "'paper_ids' required for 'sx_storage_download_url'"}
 
     destination = tmp_path / "2603.09022.pdf"
     mock_client.storage.download_arxiv_id = AsyncMock(
@@ -378,7 +385,7 @@ async def test_sx_storage_download_url_rejects_traversal(mock_client):
 async def test_sx_storage_bulk_download(mock_client):
     # Test error when arguments missing
     err = await call_sx_storage(action="bulk_download")
-    assert err == {"error": "'source' and 'paper_ids' required for 'bulk_download' action"}
+    assert err == {"error": "'source' and 'paper_ids' required for 'sx_storage_bulk_download'"}
 
     # Setup stored papers and new paper mocking
     mock_client.storage.list_stored_papers = MagicMock(
@@ -600,18 +607,19 @@ async def test_sx_storage_bulk_download_wait_for_timeout(mock_client):
 
 
 @pytest.mark.concept("SX-1.4")
-def test_prompts():
-    mcp = MockMCP()
-    register_prompts(mcp)
+def test_analysis_prompts_are_packaged_agent_definitions():
+    import json
+    from pathlib import Path
 
-    assert "scion_sdk_enhancement_scan" in mcp.prompts
-    assert "biomimicry_innovation_scan" in mcp.prompts
+    import scholarx
 
-    prompt1 = mcp.prompts["scion_sdk_enhancement_scan"]()
-    assert "Search for recent papers" in prompt1
+    root = Path(scholarx.__file__).parent / "prompts"
+    first = json.loads((root / "scion_sdk_enhancement_scan.json").read_text())
+    second = json.loads((root / "biomimicry_innovation_scan.json").read_text())
 
-    prompt2 = mcp.prompts["biomimicry_innovation_scan"]()
-    assert "Search bioRxiv, PMC for" in prompt2
+    assert "Search for recent papers" in first["instructions"]["core_directive"]
+    assert "Search bioRxiv and PMC for" in second["instructions"]["core_directive"]
+    assert first["agent"]["kind"] == second["agent"]["kind"] == "business-role"
 
 
 # ── Declared connector ──────────────────────────────────────────────────────

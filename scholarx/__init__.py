@@ -93,7 +93,6 @@ def _declare_connector():
         register_discovery_tools,
         register_kg_tools,
         register_operation_tools,
-        register_prompt_surface,
         register_search_tools,
         register_storage_tools,
     )
@@ -114,7 +113,6 @@ def _declare_connector():
             ("operation", "OPERATIONTOOL", register_operation_tools),
             ("kg", "KGTOOL", register_kg_tools),
         ),
-        extra_registrations=(register_prompt_surface,),
     )
 
 

@@ -27,40 +27,42 @@ ingestion no-ops when no epistemic-graph engine is reachable.
 
 | Variable | Required | Notes |
 |----------|----------|-------|
-| `MCP_TOOL_MODE` | optional | `condensed` \| `verbose` \| `both` |
 
-## Tools & actions
-| Tool | Actions |
+## Tools
+| Tool | Purpose |
 |------|---------|
-| `sx_storage` | `download`, `download_url`, `bulk_download`, `stored`, `status`, `queue` |
+| `sx_storage_download` | Download one paper's PDF inline, queueing it when the source is slow. |
+| `sx_storage_download_url` | Download arXiv PDFs by id or URL within a bounded wall time. |
+| `sx_storage_bulk_download` | Queue many papers from one source for background download. |
+| `sx_download_papers` | Download many papers from one source in parallel. |
+| `sx_download_urls` | Download arXiv PDFs by id or URL in parallel. |
+| `sx_storage_stored` | List locally stored papers and storage statistics. |
+| `sx_storage_status` | Status of one queued download by `job_id`. |
+| `sx_storage_queue` | Every queued background download. |
+| `scholarx_download_paper` | Download one paper object synchronously. |
+| `scholarx_download_papers` | Download paper objects in parallel with bounded concurrency. |
+| `scholarx_download_urls` | Download arXiv PDFs by id or URL with bounded concurrency. |
+| `scholarx_queue_download` | Queue a paper for background download. |
+| `scholarx_get_download_status` | Status of a queued job. |
+| `scholarx_get_queue_status` | Status of all queued downloads. |
 
 ### Key parameters
-- `source` — paper source (`arxiv`, `pmc`, …); required with `paper_ids` for `download`/`bulk_download`.
-- `paper_ids` — comma-separated ids (or arXiv ids/URLs for `download_url`).
-- `job_id` — required for `status`.
+- `source` - paper source (`arxiv`, `pmc`, ...); required with `paper_ids` for downloads.
+- `paper_ids` - comma-separated ids (or arXiv ids/URLs for the URL tools).
+- `job_id` - required for `sx_storage_status`.
 
 ## Recipes
-Download one arXiv paper (inline, or queued if slow):
-```
-sx_storage action=download source=arxiv paper_ids=2603.09022
-```
-Download straight from arXiv URLs, no API round-trip:
-```
-sx_storage action=download_url paper_ids="[configured-endpoint]
-```
-Bulk-queue several PMC papers, then poll one:
-```
-sx_storage action=bulk_download source=pmc paper_ids="PMC10000001,PMC10000002"
-sx_storage action=status job_id=<job_id>
-```
-List what is stored locally:
-```
-sx_storage action=stored
-```
+Download one arXiv paper (inline, or queued if slow): `sx_storage_download` with `source=arxiv`, `paper_ids=2603.09022`.
+
+Download straight from arXiv URLs: `sx_storage_download_url` with `paper_ids="https://arxiv.org/abs/2603.09022,2601.01234"`.
+
+Bulk-queue PMC papers, then poll: `sx_storage_bulk_download` with `source=pmc`, `paper_ids="PMC10000001,PMC10000002"`, then `sx_storage_status` with `job_id=<job_id>`.
+
+List what is stored locally: `sx_storage_stored`.
 
 ## Gotchas
 - `download` bounds the inline fetch (~60 s); slower ones return `status="queued"`
-  with a `job_id` — poll with `action=status`.
+  with a `job_id` — poll with `sx_storage_status`.
 - `download_url` is arXiv-only and strips version suffixes for the local filename
   (keeps them for the fetch URL).
 - Already-present PDFs short-circuit to `status="already_exists"` (idempotent).

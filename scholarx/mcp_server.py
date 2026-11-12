@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from fastmcp import Context
 from pydantic import Field
 from scion_sdk.config import load_config
-from scion_sdk.mcp.action_dispatch import resolve_action
 from scion_sdk.mcp.concurrency import run_blocking
 
 load_config()
@@ -28,18 +27,6 @@ _MAX_BULK_DOWNLOAD_IDS = 100
 _MAX_BULK_DOWNLOAD_SECONDS = 180.0
 
 logger = logging.getLogger(__name__)
-
-# ── Valid actions per action-routed tool ────────────────────────────────────
-SEARCH_ACTIONS = ("search", "get", "author", "recent")
-INFO_ACTIONS = ("sources", "categories")
-STORAGE_ACTIONS = (
-    "download",
-    "download_url",
-    "bulk_download",
-    "stored",
-    "status",
-    "queue",
-)
 
 # ── Lazy client singleton ───────────────────────────────────────────────────
 _client = None
@@ -77,7 +64,7 @@ def _parse_source_list(sources: str) -> list:
 
 async def _handle_sx_search_get(client, sources: str, paper_id: str, ctx) -> dict:
     if not sources or not paper_id:
-        return {"error": "Both 'sources' and 'paper_id' required for 'get' action"}
+        return {"error": "Both 'sources' and 'paper_id' required for sx_search_get"}
     from scholarx.models import PaperSource
 
     if ctx:
@@ -93,7 +80,7 @@ async def _handle_sx_search_get(client, sources: str, paper_id: str, ctx) -> dic
 
 async def _handle_sx_search_author(client, author: str, max_results: int) -> dict:
     if not author:
-        return {"error": "'author' is required for 'author' action"}
+        return {"error": "'author' is required for sx_search_author"}
     from scholarx.models import SearchQuery
 
     sq = SearchQuery(query=author, author=author, max_results=max_results)
@@ -118,7 +105,7 @@ async def _handle_sx_search_recent(client, cat_list: list[str], days: int, sourc
 
 @dataclass
 class _SxSearchArgs:
-    """The default ('search') action's query parameters, bundled so the
+    """The sx_search_search query parameters, bundled so the
     handler stays under the 7-parameter cap."""
 
     query: str
@@ -161,16 +148,12 @@ async def _handle_sx_search_default(client, args: _SxSearchArgs, ctx) -> dict:
 
 
 def register_search_tools(mcp):
-    """Register search-related tools."""
+    """Register one typed tool per search operation."""
 
-    @mcp.tool(
-        tags={"search"},
-        annotations={"readOnlyHint": True, "openWorldHint": True},
-    )
-    async def sx_search(
-        action: str = Field(
-            description="Action: 'search', 'get', 'author', 'recent'. Use 'list_actions' to discover all."
-        ),
+    read_only = {"readOnlyHint": True, "openWorldHint": True}
+
+    @mcp.tool(tags={"search"}, annotations=read_only)
+    async def sx_search_search(
         query: str = Field(default="", description="Search query string"),
         sources: str = Field(
             default="",
@@ -180,36 +163,16 @@ def register_search_tools(mcp):
         max_results: int = Field(default=20, description="Maximum results", ge=1, le=100),
         sort_by: str = Field(default="relevance", description="Sort: 'relevance' or 'date'"),
         title: str = Field(default="", description="Optional title to search for"),
-        paper_id: str = Field(
-            default="", description="Source-specific paper ID for 'get', or comma-separated for 'search'"
-        ),
-        author: str = Field(default="", description="Author name to search for"),
-        days: int = Field(default=1, description="Number of days to look back for 'recent'", ge=1, le=30),
+        paper_id: str = Field(default="", description="Comma-separated source-specific paper IDs"),
         ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
         """Search for research papers across all configured sources."""
-        resolved = resolve_action(action, SEARCH_ACTIONS, service="scholarx")
-        if isinstance(resolved, dict):
-            return resolved
-        action = resolved
-
-        client = _get_client()
-        source_list = _parse_source_list(sources)
-        cat_list = _parse_comma_list(categories)
-
-        if action == "get":
-            return await _handle_sx_search_get(client, sources, paper_id, ctx)
-        if action == "author":
-            return await _handle_sx_search_author(client, author, max_results)
-        if action == "recent":
-            return await _handle_sx_search_recent(client, cat_list, days, source_list)
-
         return await _handle_sx_search_default(
-            client,
+            _get_client(),
             _SxSearchArgs(
                 query=query,
-                source_list=source_list,
-                cat_list=cat_list,
+                source_list=_parse_source_list(sources),
+                cat_list=_parse_comma_list(categories),
                 max_results=max_results,
                 sort_by=sort_by,
                 title=title,
@@ -218,39 +181,62 @@ def register_search_tools(mcp):
             ctx,
         )
 
-
-def register_discovery_tools(mcp):
-    """Register discovery-related tools."""
-
-    @mcp.tool(tags={"discovery"}, annotations={"readOnlyHint": True})
-    async def sx_info(
-        action: str = Field(
-            default="sources",
-            description="Action: 'sources' or 'categories'. Use 'list_actions' to discover all.",
-        ),
-        source: str = Field(default="", description="Filter by source for 'categories'. Empty=all"),
+    @mcp.tool(tags={"search"}, annotations=read_only)
+    async def sx_search_get(
+        sources: str = Field(default="", description="Source of the paper (first of a comma-separated list is used)"),
+        paper_id: str = Field(default="", description="Source-specific paper ID"),
         ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
-        """Get metadata about sources and categories."""
-        from scholarx.models import PaperSource
+        """Retrieve one paper by source and paper ID."""
+        return await _handle_sx_search_get(_get_client(), sources, paper_id, ctx)
 
-        resolved = resolve_action(action, INFO_ACTIONS, service="scholarx")
-        if isinstance(resolved, dict):
-            return resolved
-        action = resolved
+    @mcp.tool(tags={"search"}, annotations=read_only)
+    async def sx_search_author(
+        author: str = Field(default="", description="Author name to search for"),
+        max_results: int = Field(default=20, description="Maximum results", ge=1, le=100),
+    ) -> dict:
+        """Search for papers by author name."""
+        return await _handle_sx_search_author(_get_client(), author, max_results)
 
+    @mcp.tool(tags={"search"}, annotations=read_only)
+    async def sx_search_recent(
+        categories: str = Field(
+            default="", description="Comma-separated category filters (default cs.AI,cs.MA,cs.SE,cs.LG)"
+        ),
+        days: int = Field(default=1, description="Number of days to look back", ge=1, le=30),
+        sources: str = Field(default="", description="Comma-separated sources. Empty=all"),
+    ) -> dict:
+        """List papers published in recent days for given categories."""
+        return await _handle_sx_search_recent(
+            _get_client(), _parse_comma_list(categories), days, _parse_source_list(sources)
+        )
+
+
+def register_discovery_tools(mcp):
+    """Register one typed tool per discovery operation."""
+
+    @mcp.tool(tags={"discovery"}, annotations={"readOnlyHint": True})
+    async def sx_info_sources(
+        ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
+    ) -> dict:
+        """Get the status of every configured paper source."""
         client = _get_client()
-        if action == "categories":
-            src = PaperSource(source) if source else None
-            return await client.list_categories(src)
-
-        # Default action: sources
         if ctx:
             await ctx.report_progress(10, 100)
         statuses = await client.get_source_status()
         if ctx:
             await ctx.report_progress(100, 100)
         return {"sources": [s.model_dump() for s in statuses]}
+
+    @mcp.tool(tags={"discovery"}, annotations={"readOnlyHint": True})
+    async def sx_info_categories(
+        source: str = Field(default="", description="Filter by source. Empty=all"),
+    ) -> dict:
+        """List the categories each paper source offers."""
+        from scholarx.models import PaperSource
+
+        src = PaperSource(source) if source else None
+        return await _get_client().list_categories(src)
 
 
 def _find_locally_stored_paper(stored, source, pid):
@@ -279,7 +265,7 @@ async def _download_single_paper(client, paper, ctx):
     # Bound the inline fetch so a slow/large source can never exceed the MCP
     # call timeout and wedge the (serialized) server — on timeout, hand the
     # job to the background download queue and return its id to poll via
-    # action='status'. Fast downloads still return the local path inline.
+    # sx_storage_status. Fast downloads still return the local path inline.
     try:
         path = await asyncio.wait_for(client.download_paper(paper), timeout=_INLINE_DOWNLOAD_BUDGET_S)
     except TimeoutError:
@@ -289,7 +275,7 @@ async def _download_single_paper(client, paper, ctx):
             "job_id": jid,
             "paper_id": paper.id,
             "note": (
-                "download exceeded the inline budget; running in background — poll with action='status', job_id=<id>"
+                "download exceeded the inline budget; running in background — poll sx_storage_status with job_id=<id>"
             ),
         }
     if ctx:
@@ -309,7 +295,7 @@ async def _sx_storage_stored(client) -> dict:
 
 async def _sx_storage_status(client, job_id) -> dict:
     if not job_id:
-        return {"error": "'job_id' required for 'status' action"}
+        return {"error": "'job_id' required for 'sx_storage_status'"}
     status = await run_blocking(client.get_download_status, job_id)
     return status if status else {"error": f"Job {job_id} not found."}
 
@@ -320,7 +306,7 @@ async def _sx_storage_queue(client) -> dict:
 
 async def _sx_storage_download(client, source, paper_ids, ctx, PaperSource) -> dict:
     if not source or not paper_ids:
-        return {"error": "'source' and 'paper_ids' required for 'download' action"}
+        return {"error": "'source' and 'paper_ids' required for 'sx_storage_download'"}
     if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
         return {"error": "'paper_ids' input limit exceeded"}
     pid = paper_ids.split(",")[0].strip()
@@ -372,7 +358,7 @@ async def _download_one_arxiv_url(client, raw_id, deadline):
 
 async def _sx_storage_download_url(client, paper_ids) -> dict:
     if not paper_ids:
-        return {"error": "'paper_ids' required for 'download_url' action"}
+        return {"error": "'paper_ids' required for 'sx_storage_download_url'"}
     if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
         return {"error": "'paper_ids' input limit exceeded"}
 
@@ -415,7 +401,7 @@ def _validate_bulk_download_request(source, paper_ids, PaperSource):
     ``paper_source``/``ids`` carry the parsed values.
     """
     if not source or not paper_ids:
-        return {"error": "'source' and 'paper_ids' required for 'bulk_download' action"}, None, None
+        return {"error": "'source' and 'paper_ids' required for 'sx_storage_bulk_download'"}, None, None
     if len(paper_ids) > _MAX_DIRECT_DOWNLOAD_INPUT_CHARS:
         return {"error": "'paper_ids' input limit exceeded"}, None, None
     ids = [i.strip() for i in paper_ids.split(",") if i.strip()]
@@ -450,51 +436,52 @@ async def _sx_storage_bulk_download(client, source, paper_ids, PaperSource) -> d
 
 
 def register_storage_tools(mcp):
-    """Register paper storage tools."""
+    """Register one typed tool per paper-storage operation."""
+
+    @mcp.tool(tags={"storage"}, annotations={"readOnlyHint": True})
+    async def sx_storage_stored() -> dict:
+        """List the locally stored papers and the storage statistics."""
+        return await _sx_storage_stored(_get_client())
+
+    @mcp.tool(tags={"storage"}, annotations={"readOnlyHint": True})
+    async def sx_storage_status(
+        job_id: str = Field(default="", description="The job_id to check status for"),
+    ) -> dict:
+        """Get the status of one queued background download."""
+        return await _sx_storage_status(_get_client(), job_id)
+
+    @mcp.tool(tags={"storage"}, annotations={"readOnlyHint": True})
+    async def sx_storage_queue() -> dict:
+        """List every queued background download."""
+        return await _sx_storage_queue(_get_client())
 
     @mcp.tool(tags={"storage"})
-    async def sx_storage(
-        action: str = Field(
-            default="stored",
-            description=(
-                "Action: 'download', 'download_url', 'bulk_download', 'stored', "
-                "'status', 'queue'. Use 'list_actions' to discover all."
-            ),
-        ),
+    async def sx_storage_download(
         source: str = Field(default="", description="Paper source (arxiv, pmc, etc.)"),
-        paper_ids: str = Field(default="", description="Comma-separated list of paper IDs to download"),
-        job_id: str = Field(default="", description="The job_id to check status for"),
+        paper_ids: str = Field(default="", description="Paper ID to download (the first of a comma-separated list)"),
         ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
-        """Manage offline PDF storage and background downloads."""
+        """Download one paper's PDF, queueing it when the source is slow."""
         from scholarx.models import PaperSource
 
-        resolved = resolve_action(action, STORAGE_ACTIONS, service="scholarx")
-        if isinstance(resolved, dict):
-            return resolved
-        action = resolved
+        return await _sx_storage_download(_get_client(), source, paper_ids, ctx, PaperSource)
 
-        client = _get_client()
-        if action == "stored":
-            return await _sx_storage_stored(client)
+    @mcp.tool(tags={"storage"})
+    async def sx_storage_download_url(
+        paper_ids: str = Field(default="", description="Comma-separated arXiv ids or abs/pdf URLs"),
+    ) -> dict:
+        """Download arXiv PDFs by id or URL within a bounded wall time."""
+        return await _sx_storage_download_url(_get_client(), paper_ids)
 
-        if action == "status":
-            return await _sx_storage_status(client, job_id)
+    @mcp.tool(tags={"storage"})
+    async def sx_storage_bulk_download(
+        source: str = Field(default="", description="Paper source (arxiv, pmc, etc.)"),
+        paper_ids: str = Field(default="", description="Comma-separated paper IDs to queue"),
+    ) -> dict:
+        """Queue many papers from one source for background download."""
+        from scholarx.models import PaperSource
 
-        if action == "queue":
-            return await _sx_storage_queue(client)
-
-        if action == "download":
-            return await _sx_storage_download(client, source, paper_ids, ctx, PaperSource)
-
-        if action == "download_url":
-            return await _sx_storage_download_url(client, paper_ids)
-
-        if action == "bulk_download":
-            return await _sx_storage_bulk_download(client, source, paper_ids, PaperSource)
-
-        # resolve_action guarantees a valid canonical action above.
-        return {"error": f"Unknown action: {action}"}  # pragma: no cover
+        return await _sx_storage_bulk_download(_get_client(), source, paper_ids, PaperSource)
 
 
 async def _sx_resolve_papers(client, paper_source, ids) -> list:
@@ -511,6 +498,15 @@ def register_operation_tools(mcp):
         """List the paper sources enabled on this server (``ScholarXClient.enabled_sources``)."""
         client = _get_client()
         return {"sources": [s.value for s in client.enabled_sources]}
+
+    @mcp.tool(
+        name="scholarx_enabled_sources",
+        tags={"discovery"},
+        annotations={"readOnlyHint": True},
+    )
+    async def scholarx_enabled_sources() -> dict:
+        """List the paper sources enabled on this server (client-method name of ``sx_enabled_sources``)."""
+        return {"sources": [s.value for s in _get_client().enabled_sources]}
 
     @mcp.tool(
         tags={"storage"},
@@ -593,40 +589,3 @@ def register_kg_tools(mcp):
         if ctx:
             await ctx.report_progress(100, 100)
         return {"fetched": len(result.papers), "ingested": ingested}
-
-
-def register_prompts(mcp):
-    """Register analysis prompts for the genius-agent."""
-
-    @mcp.prompt()
-    def scion_sdk_enhancement_scan() -> str:
-        """Scan recent CS/AI papers for scion-sdk enhancement opportunities."""
-        return (
-            "Search for recent papers in cs.AI, cs.MA, cs.SE, cs.LG, cs.CL.\n"
-            "For each paper, evaluate against scion-sdk concepts (AU-001 through AU-047):\n"
-            "1. Primary contribution type (theoretical/empirical/artifact/methodology)\n"
-            "2. Gap addressed relative to existing AU concepts\n"
-            "3. Theoretical relationship (extends/contradicts/complements)\n"
-            "4. Key concepts introduced or reused\n"
-            "5. Methodological compatibility with graph-native architecture\n"
-            "6. Level of analysis (micro-agent/meso-swarm/macro-ecosystem)\n"
-            "7. Evidence maturity (proposal/prototype/validated/production)\n"
-            "8. Complementary or substitution potential\n"
-            "Output a ranked list of actionable enhancement proposals."
-        )
-
-    @mcp.prompt()
-    def biomimicry_innovation_scan() -> str:
-        """Scan biology/chemistry for biomimetic agent patterns."""
-        return (
-            "Search bioRxiv, PMC for: swarm intelligence, stigmergy, quorum sensing, "
-            "neural plasticity, homeostasis, immune response, chemical signaling, "
-            "self-organizing systems, emergent behavior.\n"
-            "Map findings to AU-033 (Quorum Sensing), AU-034 (Ant Colony), "
-            "AU-037 (Homeostatic Cron), and novel mechanisms."
-        )
-
-
-def register_prompt_surface(context):
-    """Registration hook: serve the analysis prompts on the connector's server."""
-    register_prompts(context.server)

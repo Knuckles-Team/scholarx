@@ -52,7 +52,7 @@ Detailed instructions on how to use the underlying API wrappers, extended schema
 
 ## MCP
 
-This server use dynamic Action-Routed tools to optimize token overhead and maximize IDE compatibility.
+This server serves one typed tool per operation: search, discovery, storage and download tools, plus one tool per ScholarX client method.
 
 ### Available MCP Tools
 
@@ -60,18 +60,27 @@ The table below is auto-generated from the MCP server — do not edit by hand.
 
 <!-- MCP-TOOLS-TABLE:START -->
 
-#### Condensed action-routed tools (default — `MCP_TOOL_MODE=condensed`)
+#### Typed tools
 
 | MCP Tool | Toggle Env Var | Description |
 |----------|----------------|-------------|
-| `sx_info` | `DISCOVERYTOOL` | Get metadata about sources and categories. |
-| `sx_search` | `SEARCHTOOL` | Search for research papers across all configured sources. |
-| `sx_storage` | `STORAGETOOL` | Manage offline PDF storage and background downloads. |
+| `sx_search_search` | `SEARCHTOOL` | Search for research papers across all configured sources. |
+| `sx_search_get` | `SEARCHTOOL` | Retrieve one paper by source and id. |
+| `sx_search_author` | `SEARCHTOOL` | Search papers by author name. |
+| `sx_search_recent` | `SEARCHTOOL` | Papers published in recent days. |
+| `sx_info_sources` | `DISCOVERYTOOL` | Status of every configured source. |
+| `sx_info_categories` | `DISCOVERYTOOL` | Categories each source offers. |
+| `sx_storage_stored` | `STORAGETOOL` | Locally stored papers and statistics. |
+| `sx_storage_status` | `STORAGETOOL` | Status of one queued download. |
+| `sx_storage_queue` | `STORAGETOOL` | Every queued download. |
+| `sx_storage_download` | `STORAGETOOL` | Download one paper. |
+| `sx_storage_download_url` | `STORAGETOOL` | Download arXiv PDFs by id or URL. |
+| `sx_storage_bulk_download` | `STORAGETOOL` | Queue many papers for download. |
 | `sx_enabled_sources` | `OPERATIONTOOL` | List the paper sources enabled on this server (read-only). |
 | `sx_download_papers` | `OPERATIONTOOL` | Download many papers in parallel. |
 | `sx_download_urls` | `OPERATIONTOOL` | Download arXiv PDFs directly by id or URL in parallel. |
 
-#### Verbose 1:1 API-mapped tools (`MCP_TOOL_MODE=verbose` or `both`)
+#### Per-client-method tools
 
 <details>
 <summary>11 per-operation tools — one per public API method (click to expand)</summary>
@@ -92,7 +101,7 @@ The table below is auto-generated from the MCP server — do not edit by hand.
 
 </details>
 
-_3 action-routed tool(s) (default) · 11 verbose 1:1 tool(s). Each is enabled unless its `<DOMAIN>TOOL` toggle is set false; `MCP_TOOL_MODE` selects the surface (`condensed` default · `verbose` 1:1 · `both`). Auto-generated — do not edit._
+_15 typed tool(s) · 12 client-method tool(s) · 1 ingestion tool. Auto-generated - do not edit._
 <!-- MCP-TOOLS-TABLE:END -->
 
 Detailed tool schemas, parameter shapes, and validation constraints are preserved in [docs/usage.md](docs/usage.md).
