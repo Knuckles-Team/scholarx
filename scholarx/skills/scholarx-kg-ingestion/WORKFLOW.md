@@ -28,14 +28,13 @@ fast client); with no engine present every ingestion path silently no-ops.
 | Variable | Required | Notes |
 |----------|----------|-------|
 | `NCBI_API_KEY` / `S2_API_KEY` / `OSF_TOKEN` | optional | Raise per-source fetch limits |
-| `MCP_TOOL_MODE` | optional | `condensed` \| `verbose` \| `both` |
 
-## Tools & actions
+## Tools
 | Tool | Purpose |
 |------|---------|
 | `scholarx_ingest_papers` | Search + push results as typed `:Paper` nodes into the KG |
 
-Search (`sx_search`) and download (`sx_storage action=download`) **also** ingest
+Search (`sx_search_search`) and download (`sx_storage_download`) **also** ingest
 best-effort automatically — this tool is the explicit, parameterized entry point.
 
 ### Key parameters

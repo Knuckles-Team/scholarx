@@ -32,7 +32,12 @@ def tools():
 
 
 def test_tools_are_registered_with_hints(tools):
-    assert set(tools.tools) == {"sx_enabled_sources", "sx_download_papers", "sx_download_urls"}
+    assert set(tools.tools) == {
+        "sx_enabled_sources",
+        "scholarx_enabled_sources",
+        "sx_download_papers",
+        "sx_download_urls",
+    }
     assert tools.kwargs["sx_enabled_sources"]["annotations"]["readOnlyHint"] is True
     assert tools.kwargs["sx_download_papers"]["annotations"]["readOnlyHint"] is False
     assert tools.kwargs["sx_download_urls"]["annotations"]["readOnlyHint"] is False

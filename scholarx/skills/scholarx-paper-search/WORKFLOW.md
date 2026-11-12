@@ -14,7 +14,7 @@ removes cross-source duplicates for you.
 - Fetch one paper by its source-native id (`get`).
 - List a specific author's papers (`author`).
 - Pull recently published papers in a set of categories (`recent`).
-- Enumerate available sources / categories (`sx_info`).
+- Enumerate available sources / categories (`sx_info_sources`, `sx_info_categories`).
 
 ## When NOT to use
 - Downloading full-text PDFs or managing the offline store → `scholarx-paper-library`.
@@ -30,16 +30,26 @@ key is required for the default sources; optional keys raise rate limits.
 | `NCBI_API_KEY` | optional | Raises PMC/NCBI limit (3/s → 10/s) |
 | `S2_API_KEY` | optional | Semantic Scholar API key |
 | `OSF_TOKEN` | optional | OSF / PsyArXiv token |
-| `MCP_TOOL_MODE` | optional | `condensed` \| `verbose` \| `both` |
 
-## Tools & actions
-| Tool | Actions |
+## Tools
+| Tool | Purpose |
 |------|---------|
-| `sx_search` | `search`, `get`, `author`, `recent` |
-| `sx_info` | `sources`, `categories` |
+| `sx_search_search` | Search papers across sources with filters. |
+| `sx_search_get` | Retrieve one paper by source and id. |
+| `sx_search_author` | Search papers by author name. |
+| `sx_search_recent` | Papers published in recent days for categories. |
+| `sx_info_sources` | Status of every configured source. |
+| `sx_info_categories` | Categories each source offers. |
+| `sx_enabled_sources` | Sources enabled on this server. |
+| `scholarx_search` | Search with a full search-query object. |
+| `scholarx_get_paper` | Retrieve a paper from one source. |
+| `scholarx_get_recent_papers` | Recent papers for categories. |
+| `scholarx_get_source_status` | Status of all configured sources. |
+| `scholarx_list_categories` | Categories per source. |
+| `scholarx_enabled_sources` | Enabled sources. |
 
 ### Key parameters
-- `query` — free-text search string (for `search`).
+- `query` - free-text search string (for `sx_search_search`).
 - `sources` — comma-separated (`arxiv,pmc,biorxiv,medrxiv,psyarxiv,osf,semantic_scholar`); empty = all.
 - `categories` — comma-separated filters (e.g. `cs.AI,cs.MA`); also seeds `recent`.
 - `paper_id` — source-native id; required with `sources` for `get`.
@@ -50,15 +60,15 @@ key is required for the default sources; optional keys raise rate limits.
 ## Recipes
 Search multi-agent papers on arXiv + Semantic Scholar, newest first:
 ```
-sx_search action=search query="multi-agent reinforcement learning" sources="arxiv,semantic_scholar" sort_by=date max_results=25
+sx_search_search query="multi-agent reinforcement learning" sources="arxiv,semantic_scholar" sort_by=date max_results=25
 ```
 Get one arXiv paper by id:
 ```
-sx_search action=get sources=arxiv paper_id=2603.09022
+sx_search_get sources=arxiv paper_id=2603.09022
 ```
 Recent cs.AI / cs.MA preprints from the last 2 days:
 ```
-sx_search action=recent categories="cs.AI,cs.MA" days=2
+sx_search_recent categories="cs.AI,cs.MA" days=2
 ```
 
 ## Gotchas
