@@ -17,6 +17,8 @@
       "sx_search_get",
       "scholarx_get_paper",
       "sx_search_author",
+      "sx_search_citations",
+      "scholarx_get_citing_papers",
       "sx_search_recent",
       "scholarx_get_recent_papers",
       "sx_info_sources",

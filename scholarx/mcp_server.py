@@ -78,6 +78,22 @@ async def _handle_sx_search_get(client, sources: str, paper_id: str, ctx) -> dic
     )
 
 
+async def _handle_sx_search_citations(client, sources: str, paper_id: str, max_results: int) -> dict:
+    if not paper_id:
+        return {"error": "'paper_id' is required for sx_search_citations"}
+    from scholarx.models import PaperSource
+
+    source = PaperSource(sources.split(",")[0].strip() or PaperSource.SEMANTIC_SCHOLAR.value)
+    try:
+        papers = await client.get_citing_papers(source, paper_id, max_results)
+    except ValueError as exc:
+        return {"error": str(exc)}
+    return {
+        "papers": [p.model_dump(exclude={"normalized_title", "normalized_authors"}) for p in papers],
+        "total_count": len(papers),
+    }
+
+
 async def _handle_sx_search_author(client, author: str, max_results: int) -> dict:
     if not author:
         return {"error": "'author' is required for sx_search_author"}
@@ -189,6 +205,15 @@ def register_search_tools(mcp):
     ) -> dict:
         """Retrieve one paper by source and paper ID."""
         return await _handle_sx_search_get(_get_client(), sources, paper_id, ctx)
+
+    @mcp.tool(tags={"search"}, annotations=read_only)
+    async def sx_search_citations(
+        paper_id: str = Field(default="", description="Source-specific ID of the paper whose citing papers to list"),
+        sources: str = Field(default="semantic_scholar", description="Source holding the citation graph"),
+        max_results: int = Field(default=20, description="Maximum results", ge=1, le=100),
+    ) -> dict:
+        """List papers that cite the given paper."""
+        return await _handle_sx_search_citations(_get_client(), sources, paper_id, max_results)
 
     @mcp.tool(tags={"search"}, annotations=read_only)
     async def sx_search_author(

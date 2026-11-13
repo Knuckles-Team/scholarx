@@ -68,6 +68,10 @@ class PaperProvider(ABC):
             return os.environ.get("S2_API_KEY")
         return os.environ.get(env_name)
 
+    async def get_citations(self, paper_id: str, limit: int = 20) -> list[Paper]:
+        """Papers that cite ``paper_id``; only sources with a citation graph support it."""
+        raise NotImplementedError(f"{self.source.value} does not expose citing papers")
+
     async def _wait_for_rate_limit(self) -> None:
         """Enforce per-source rate limiting."""
         async with self._rate_limit:

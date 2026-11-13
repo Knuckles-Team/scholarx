@@ -50,6 +50,8 @@ key is required for the default sources; optional keys raise rate limits.
 | `sx_search_search` | Search papers across sources with filters. |
 | `sx_search_get` | Retrieve one paper by source and id. |
 | `sx_search_author` | Search papers by author name. |
+| `sx_search_citations` | List papers that cite a given paper. |
+| `scholarx_get_citing_papers` | List papers that cite a given paper (client operation). |
 | `sx_search_recent` | Papers published in recent days for categories. |
 | `sx_info_sources` | Status of every configured source. |
 | `sx_info_categories` | Categories each source offers. |
