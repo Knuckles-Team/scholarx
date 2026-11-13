@@ -35,15 +35,18 @@ import asyncio
 from scholarx.api_client import ScholarXClient
 from scholarx.models import SearchQuery
 
+
 async def main():
     client = ScholarXClient()
 
     # Search across all sources at once
-    result = await client.search(SearchQuery(
-        query="multi-agent orchestration",
-        categories=["cs.AI", "cs.MA"],
-        max_results=10,
-    ))
+    result = await client.search(
+        SearchQuery(
+            query="multi-agent orchestration",
+            categories=["cs.AI", "cs.MA"],
+            max_results=10,
+        )
+    )
 
     for paper in result.papers:
         print(f"[{paper.source}] {paper.title}")
@@ -54,6 +57,7 @@ async def main():
     if result.papers:
         path = await client.download_paper(result.papers[0])
         print(f"stored at: {path}")
+
 
 asyncio.run(main())
 ```

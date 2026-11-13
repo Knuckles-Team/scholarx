@@ -100,9 +100,11 @@ from unittest.mock import AsyncMock, MagicMock
 from scholarx.paper_storage import PaperStorage
 from scholarx.models import Paper, PaperSource
 
+
 @pytest.fixture
 def temp_storage(tmp_path):
     return PaperStorage(storage_dir=tmp_path)
+
 
 @pytest.mark.asyncio
 async def test_download_paper_success(temp_storage):
@@ -112,7 +114,7 @@ async def test_download_paper_success(temp_storage):
         title="Mock Paper",
         authors=["Alice"],
         pdf_url="https://arxiv.org/pdf/1234.5678.pdf",
-        source=PaperSource.ARXIV
+        source=PaperSource.ARXIV,
     )
 
     # Mock client and download stream
@@ -135,6 +137,7 @@ async def test_download_paper_success(temp_storage):
     with open(meta_path, "r") as f:
         meta = json.load(f)
         assert meta["title"] == "Mock Paper"
+
 
 @pytest.mark.asyncio
 async def test_list_stored_papers(temp_storage):
@@ -167,14 +170,10 @@ from unittest.mock import AsyncMock, patch
 from scholarx.queue import JOB_QUEUE, JOB_STATUS, queue_download, _download_worker
 from scholarx.models import Paper, PaperSource
 
+
 @pytest.mark.asyncio
 async def test_queue_download_execution():
-    paper = Paper(
-        id="arxiv:9999",
-        title="Queue Test",
-        authors=["Bob"],
-        source=PaperSource.ARXIV
-    )
+    paper = Paper(id="arxiv:9999", title="Queue Test", authors=["Bob"], source=PaperSource.ARXIV)
 
     # Patch client storage download to execute instantly
     with patch("scholarx.api_client.ScholarXClient") as MockClient:
@@ -189,6 +188,7 @@ async def test_queue_download_execution():
 
         # Manually trigger one queue processing cycle
         from scholarx.queue import JOB_QUEUE
+
         # The background thread should pick it up automatically, but we can verify status transition
         timeout = 5.0
         start = time.time()
@@ -211,6 +211,7 @@ from unittest.mock import AsyncMock, patch
 from scholarx.mcp_server import mcp
 from scholarx.models import Paper, PaperSource
 
+
 @pytest.mark.asyncio
 @patch("scholarx.mcp_server.client")
 async def test_mcp_tool_search(mock_client):
@@ -221,7 +222,7 @@ async def test_mcp_tool_search(mock_client):
         authors=["Charlie"],
         source=PaperSource.ARXIV,
         abstract="Snippet",
-        url="http://test.com"
+        url="http://test.com",
     )
     mock_client.search = AsyncMock(return_value=[mock_paper])
 
@@ -249,6 +250,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from scholarx.kg_integration import ScholarXKGBridge
 from scholarx.models import Paper, PaperSource
 
+
 @pytest.fixture
 def mock_graph_engine():
     engine = MagicMock()
@@ -257,6 +259,7 @@ def mock_graph_engine():
     engine.graph.nodes = []
     engine.graph.has_edge = MagicMock(return_value=False)
     return engine
+
 
 @pytest.mark.asyncio
 async def test_ingest_abstract_only(mock_graph_engine):
@@ -268,7 +271,7 @@ async def test_ingest_abstract_only(mock_graph_engine):
         authors=["David"],
         source=PaperSource.ARXIV,
         abstract="KG logic representation abstract.",
-        doi="10.1234/kg"
+        doi="10.1234/kg",
     )
 
     # Mock abstract-only fallback
@@ -296,6 +299,7 @@ from httpx import Response
 from scholarx.providers.biorxiv import BiorxivProvider
 from scholarx.models import SearchQuery
 
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_biorxiv_provider_search():
@@ -311,15 +315,13 @@ async def test_biorxiv_provider_search():
                 "authors": "Dr. John Doe; Dr. Jane Smith",
                 "category": "Cancer Biology",
                 "date": "2026-05-01",
-                "abstract": "This study shows significant findings."
+                "abstract": "This study shows significant findings.",
             }
         ]
     }
 
     # Setup endpoint matching
-    respx.get(url__contains="/details/biorxiv").mock(
-        return_value=Response(status_code=200, json=mock_payload)
-    )
+    respx.get(url__contains="/details/biorxiv").mock(return_value=Response(status_code=200, json=mock_payload))
 
     papers = await provider.search(query)
     assert len(papers) == 1
@@ -338,6 +340,7 @@ async def test_biorxiv_provider_search():
 import pytest
 from unittest.mock import MagicMock, patch
 from scholarx.cli import main
+
 
 def test_cli_argument_routing():
     # Mock CLI arguments
