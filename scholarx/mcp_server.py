@@ -567,7 +567,7 @@ def register_kg_tools(mcp):
         max_results: int = Field(default=20, description="Maximum papers to fetch and ingest", ge=1, le=100),
         ctx: Context | None = Field(description="MCP context for progress reporting", default=None),
     ) -> dict:
-        """Fetch papers and natively ingest them into epistemic-graph as typed :Paper nodes.
+        """Fetch papers and natively ingest them into medulla as typed :Paper nodes.
 
         Searches via the real ScholarX client and pushes the results (with their
         :PaperSource / :ResearchCategory / :Person nodes and :publishedInSource /

@@ -1,14 +1,14 @@
-"""Native epistemic-graph ingestion for ScholarX papers (typed graph nodes + documents).
+"""Native medulla ingestion for ScholarX papers (typed graph nodes + documents).
 
 CONCEPT:AU-KG.ingest.enterprise-source-extractor. ScholarX natively pushes the papers it
-fetches into the ONE epistemic-graph knowledge graph as **typed OWL nodes** (``:Paper``,
+fetches into the ONE medulla knowledge graph as **typed OWL nodes** (``:Paper``,
 ``:PaperSource``, ``:ResearchCategory``, shared ``:Person``) with their links
 (``:publishedInSource`` / ``:authoredBy`` / ``:hasCategory``), and — because a :Paper carries
 its abstract as searchable ``text`` — as the **document** modality in the same node. Raw PDF
 bytes ride the **blob** path in :mod:`scholarx.kg_media`.
 
 The write path is the SDK's knowledge-ingest facade (:mod:`scion_sdk.ingest`), which
-submits a typed ``ChangeSet`` through the generated epistemic-graph ``SourceIngest`` request/
+submits a typed ``ChangeSet`` through the generated medulla ``SourceIngest`` request/
 receipt types. Engine failures are explicit (:class:`~scion_sdk.ingest.IngestError`)
 and partial writes are never acknowledged. Node ids follow ``scholarx:<class>:<externalId>``
 and ``node_type`` matches the classes federated by ``scholarx.ontology``.

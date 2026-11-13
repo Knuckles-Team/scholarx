@@ -2,7 +2,7 @@
 name: scholarx-kg-ingestion
 skill_type: skill
 description: >-
-  Native epistemic-graph ingestion of research papers via the scholarx MCP
+  Native medulla ingestion of research papers via the scholarx MCP
   server — fetch papers and push them into the knowledge graph as typed :Paper
   nodes with their :PaperSource, :ResearchCategory and :Person (author) nodes and
   links, plus full-text PDFs as :MediaAsset blobs. Use when the agent must
@@ -17,7 +17,7 @@ metadata:
 ---
 # ScholarX Knowledge-Graph Ingestion
 
-Push fetched papers natively into the ONE epistemic-graph as typed OWL nodes. A
+Push fetched papers natively into the ONE medulla as typed OWL nodes. A
 `:Paper` carries its abstract as searchable `text` (the document modality), links
 to its `:PaperSource`, `:ResearchCategory` and `:Person` authors, and — once its
 PDF is downloaded — to a `:MediaAsset` PDF blob via `:hasFullText`. All writes are
@@ -35,7 +35,7 @@ best-effort and no-op cleanly when no engine is reachable.
 
 ## Prerequisites & environment
 Connect via the `mcp-client` skill against the **`scholarx`** MCP server. Native
-ingestion targets a reachable epistemic-graph engine (the `GraphComputeEngine`
+ingestion targets a reachable medulla engine (the `GraphComputeEngine`
 fast client); with no engine present every ingestion path silently no-ops.
 
 | Variable | Required | Notes |
@@ -56,7 +56,7 @@ best-effort automatically — this tool is the explicit, parameterized entry poi
 - `categories` — comma-separated category filters.
 - `max_results` — how many papers to fetch and ingest (1–100).
 
-### Ontology written (`http://knuckles.team/kg/scholarx`)
+### Ontology written (`https://knuckles-team.github.io/ontology/connector/scholarly-papers`)
 - Nodes: `:Paper` (id `scholarx:paper:<id>`), `:PaperSource` (`scholarx:source:<src>`),
   `:ResearchCategory` (`scholarx:category:<cat>`), shared `:Person` (`scholarx:person:<slug>`).
 - Links: `:publishedInSource`, `:hasCategory`, `:authoredBy`, `:hasFullText`.

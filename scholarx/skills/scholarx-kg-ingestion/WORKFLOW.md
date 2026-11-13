@@ -1,10 +1,10 @@
 # Scholarx Kg Ingestion
 
-Native epistemic-graph ingestion of research papers via the scholarx MCP server — fetch papers and push them into the knowledge graph as typed :Paper nodes with their :PaperSource, :ResearchCategory and :Person (author) nodes and links, plus full-text PDFs as :AssetOccurrence blobs. Use when the agent must persist papers into the KG for later graph/semantic queries or build a research corpus. Do NOT use for plain search/metadata lookups (use scholarx-paper-search) or for downloading PDFs to disk without KG persistence (use scholarx-paper-library).
+Native medulla ingestion of research papers via the scholarx MCP server — fetch papers and push them into the knowledge graph as typed :Paper nodes with their :PaperSource, :ResearchCategory and :Person (author) nodes and links, plus full-text PDFs as :AssetOccurrence blobs. Use when the agent must persist papers into the KG for later graph/semantic queries or build a research corpus. Do NOT use for plain search/metadata lookups (use scholarx-paper-search) or for downloading PDFs to disk without KG persistence (use scholarx-paper-library).
 
 # ScholarX Knowledge-Graph Ingestion
 
-Push fetched papers natively into the ONE epistemic-graph as typed OWL nodes. A
+Push fetched papers natively into the ONE medulla as typed OWL nodes. A
 `:Paper` carries its abstract as searchable `text` (the document modality), links
 to its `:PaperSource`, `:ResearchCategory` and `:Person` authors, and — once its
 PDF is downloaded — to a `:AssetOccurrence` PDF blob via `:hasFullText`. All writes are
@@ -22,7 +22,7 @@ best-effort and no-op cleanly when no engine is reachable.
 
 ## Prerequisites & environment
 Connect via the `mcp-client` skill against the **`scholarx`** MCP server. Native
-ingestion targets a reachable epistemic-graph engine (the `GraphComputeEngine`
+ingestion targets a reachable medulla engine (the `GraphComputeEngine`
 fast client); with no engine present every ingestion path silently no-ops.
 
 | Variable | Required | Notes |

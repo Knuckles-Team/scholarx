@@ -18,7 +18,7 @@ OSF, and Semantic Scholar.
 `scholarx` is a single, deduplicated interface across **seven** preprint and academic
 repositories. It fans a query out to every source in parallel, merges and
 deduplicates the results, downloads full PDFs, and ingests them into the
-epistemic-graph Knowledge Graph. The capability is exposed three ways:
+medulla Knowledge Graph. The capability is exposed three ways:
 
 - **`ScholarXClient`** — a unified async Python client that fans out to all providers,
   applies per-source rate limiting, and returns merged, deduplicated `SearchResult`

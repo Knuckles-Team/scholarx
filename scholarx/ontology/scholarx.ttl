@@ -1,7 +1,8 @@
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix core: <https://knuckles-team.github.io/ontology/core#> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
 @prefix dc: <http://purl.org/dc/terms/> .
-@prefix : <http://knuckles.team/kg#> .
+@prefix : <https://knuckles-team.github.io/ontology/connector/scholarly-papers#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
@@ -19,9 +20,10 @@
 :Paper a owl:Class ;
     rdfs:label "Research Paper" ;
     rdfs:comment "A research paper / preprint from any supported source, carrying its abstract as searchable text (sx_search)." ;
-    rdfs:subClassOf :Document .
+    rdfs:subClassOf core:Document .
 
 :PaperSource a owl:Class ;
+    rdfs:subClassOf core:PaperSource ;
     rdfs:label "Paper Source" ;
     rdfs:comment "A research repository ScholarX federates: arxiv, pmc, biorxiv, medrxiv, psyarxiv, osf, semantic_scholar (sx_info sources)." .
 
@@ -47,7 +49,7 @@
     rdfs:label "authored by" ;
     rdfs:comment "Links a Paper to a Person who wrote it." ;
     rdfs:domain :Paper ;
-    rdfs:range :Person .
+    rdfs:range core:Person .
 
 :citesPaper a owl:ObjectProperty ;
     rdfs:label "cites paper" ;
@@ -59,7 +61,7 @@
     rdfs:label "has full text" ;
     rdfs:comment "Links a Paper to the AssetOccurrence holding its downloaded full-text PDF blob." ;
     rdfs:domain :Paper ;
-    rdfs:range :AssetOccurrence .
+    rdfs:range core:AssetOccurrence .
 
 # --- fields (owl:DatatypeProperty) ---
 
@@ -98,7 +100,7 @@
     rdfs:comment "The source-native identifier of the object (e.g. an arXiv id, PMC id, DOI)." ;
     rdfs:range xsd:string .
 
-<http://knuckles.team/kg/scholarx> a owl:Ontology ;
+<https://knuckles-team.github.io/ontology/connector/scholarly-papers> a owl:Ontology ;
     rdfs:label "ScholarX Research-Paper Ontology" ;
     rdfs:comment """ScholarX research-paper model — papers and their preprint/journal
     source repositories, subject categories, authors (shared :Person), abstracts and
@@ -107,4 +109,4 @@
     Semantic Scholar.""" .
 
 # ontology-codemod R3
-<http://knuckles.team/kg#ResearchCategory> rdfs:subClassOf <http://knuckles.team/kg#Category> .
+<https://knuckles-team.github.io/ontology/connector/scholarly-papers#ResearchCategory> rdfs:subClassOf <https://knuckles-team.github.io/ontology/core#Category> .

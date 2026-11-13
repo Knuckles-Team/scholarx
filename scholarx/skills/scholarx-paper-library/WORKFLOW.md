@@ -23,7 +23,7 @@ graph as a content-addressed PDF blob (`:AssetOccurrence`), best-effort.
 ## Prerequisites & environment
 Connect via the `mcp-client` skill against the **`scholarx`** MCP server. PDFs
 are written under the shared research dir (`<research_dir>/papers`); the KG blob
-ingestion no-ops when no epistemic-graph engine is reachable.
+ingestion no-ops when no medulla engine is reachable.
 
 | Variable | Required | Notes |
 |----------|----------|-------|

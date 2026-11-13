@@ -1504,8 +1504,8 @@ requires-dist = [
     { name = "respx", marker = "extra == 'test'", specifier = ">=0.23.1" },
     { name = "rich", specifier = ">=15.0.0" },
     { name = "scholarx", extras = ["mcp"], marker = "extra == 'all'" },
-    { name = "scion-sdk", extras = ["mcp"], specifier = ">=0.9.1,<0.10.0" },
-    { name = "scion-sdk", extras = ["mcp"], marker = "extra == 'mcp'", specifier = ">=0.9.1,<0.10.0" },
+    { name = "scion-sdk", extras = ["mcp"], specifier = ">=0.11.0,<0.12" },
+    { name = "scion-sdk", extras = ["mcp"], marker = "extra == 'mcp'", specifier = ">=0.11.0,<0.12" },
 ]
 provides-extras = ["mcp", "all", "test"]
 
@@ -1514,7 +1514,7 @@ dev = [{ name = "pytest-timeout", specifier = ">=2.4.0" }]
 
 [[package]]
 name = "scion-sdk"
-version = "0.9.1"
+version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -1527,9 +1527,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5c/90/a1060f3e920e2f7b43a04545fbb6f0368ccd6c591a111ace476ef9c9f53c/scion_sdk-0.9.1.tar.gz", hash = "sha256:b9070c23cb9e1dfd2d4ffde04fd3db190bb3a8a86584e0d04f72a64884fc18ca", size = 1233548, upload-time = "2026-11-06T19:08:11.532Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/11/c6/88486d481d2156db2c05046ec4cc87a39db30ee0b1af6f79d62f426a10d9/scion_sdk-0.11.0.tar.gz", hash = "sha256:3d7b3ed6e54282a10a314af4a86fa02bb88380c1dfdbdfff76ea89a49ff5a1eb", size = 1267020, upload-time = "2026-11-12T19:56:18.498Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/ac/aba40530ae09fb1bb8d53159e44880b5c477877a1cfafde159b1efe941f2/scion_sdk-0.9.1-py3-none-any.whl", hash = "sha256:8e084b85373e399aca22e62afe2aeb81345e153baa15593430aefb947c0c7dfd", size = 1202358, upload-time = "2026-11-06T19:08:12.894Z" },
+    { url = "https://files.pythonhosted.org/packages/07/f3/f73beb1e841464266dd223349212728ffda04c95076b708890b418c9c45a/scion_sdk-0.11.0-py3-none-any.whl", hash = "sha256:621a50c1aaf0e8b27d103126c38b8026b2bcaa991dbc061e2d12044e3ca27e51", size = 1222814, upload-time = "2026-11-12T19:56:12.72Z" },
 ]
 
 [package.optional-dependencies]
