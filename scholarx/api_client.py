@@ -258,6 +258,20 @@ class ScholarXClient:
             return None
         return await provider.get_paper(paper_id)
 
+    async def get_citing_papers(self, source: PaperSource, paper_id: str, limit: int = 20) -> list[Paper]:
+        """Papers that cite ``paper_id`` according to ``source``.
+
+        Raises:
+            ValueError: the source is not configured or has no citation graph.
+        """
+        provider = self._providers.get(source)
+        if not provider:
+            raise ValueError(f"Source not configured: {source.value}")
+        try:
+            return await provider.get_citations(paper_id, limit)
+        except NotImplementedError as exc:
+            raise ValueError(str(exc)) from exc
+
     async def get_recent_papers(
         self,
         categories: list[str] | None = None,

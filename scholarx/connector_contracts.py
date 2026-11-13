@@ -55,6 +55,26 @@ CONTRACTS = (
         ),
     ),
     ToolUseContract(
+        "find-citing-papers",
+        (
+            ToolStep(
+                "sx_search_citations",
+                params=("paper_id", "sources", "max_results"),
+                result=("papers", "total_count"),
+                refusals=(
+                    Refusal("PAPER_ID_REQUIRED", "no paper id was supplied"),
+                    Refusal("CITATIONS_UNSUPPORTED", "the source has no citation graph"),
+                ),
+            ),
+            ToolStep(
+                "scholarx_get_citing_papers",
+                params=("source", "paper_id", "limit"),
+                result=("id", "title", "authors"),
+                refusals=(Refusal("INVALID_SOURCE", "the source is not configured or has no citation graph"),),
+            ),
+        ),
+    ),
+    ToolUseContract(
         "find-papers-by-author",
         (
             ToolStep(
@@ -248,6 +268,12 @@ LINKS = (
         skills=("scholarx-paper-search",),
     ),
     SurfaceLink(
+        "find-citing-papers",
+        tools=("sx_search_citations", "scholarx_get_citing_papers"),
+        prompts=("scholarx-operator", "scholarx-research-scout"),
+        skills=("scholarx-paper-search",),
+    ),
+    SurfaceLink(
         "find-papers-by-author",
         tools=("sx_search_author",),
         prompts=("scholarx-operator", "scholarx-research-scout"),
@@ -342,6 +368,7 @@ ROLES = (
             "search-papers",
             "read-a-paper",
             "find-papers-by-author",
+            "find-citing-papers",
             "track-recent-papers",
             "explore-sources-and-categories",
         ),

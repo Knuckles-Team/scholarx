@@ -82,6 +82,22 @@ class SemanticScholarProvider(PaperProvider):
             logger.error("Operation failed: error_type=%s", type(e).__name__)
             return None
 
+    async def get_citations(self, paper_id: str, limit: int = 20) -> list[Paper]:
+        clean_id = paper_id.replace("s2:", "").replace("S2:", "")
+        headers = {"x-api-key": self._api_key} if self._api_key else {}
+        fields = ",".join(f"citingPaper.{f}" for f in _FIELDS.split(","))
+        try:
+            resp = await self._get(
+                f"/paper/{clean_id}/citations",
+                params={"fields": fields, "limit": min(limit, self.config.max_results_per_query)},
+                headers=headers,
+            )
+            rows = resp.json().get("data", [])
+            return [p for p in (self._parse(r.get("citingPaper")) for r in rows) if p]
+        except Exception as e:
+            logger.error("Operation failed: error_type=%s", type(e).__name__)
+            return []
+
     async def get_recent(self, categories: list[str] | None = None, days: int = 1) -> list[Paper]:
         query_str = "machine learning OR artificial intelligence OR multi-agent systems"
         params: dict = {"query": query_str, "limit": 50, "fields": _FIELDS}
