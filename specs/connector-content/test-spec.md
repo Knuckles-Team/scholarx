@@ -7,6 +7,7 @@ Governing spec: [spec.md](spec.md).
 | T-001 | `CONN-SCHOLARX-CONNECTOR-CONTENT-R002` | `tests/test_citing_papers.py::test_sx_search_citations_returns_documented_fields` (planned) | Test: the action returns the documented fields. |
 | T-002 | `CONN-SCHOLARX-CONNECTOR-CONTENT-R001` | `tests/test_default_content_surfaces.py::test_default_content_surfaces` | `resources/list` includes `skill://` and `ontology://`; `prompts/list` includes each packaged prompt. |
 | T-003 | `CONN-SCHOLARX-CONNECTOR-CONTENT-R003` | `tests/test_paper_tools_served.py::test_registered_tools_search_and_stream` (planned) | Test: `tests/test_paper_tools_served.py::test_registered_tools_search_and_stream` (L3) calls the three tools through `tools/call` against controlled provider servers. |
+| T-004 | `CONN-SCHOLARX-CONNECTOR-CONTENT-R004` | `tests/test_ontology_extends_core.py::test_pack_declares_no_core_term` | The served Turtle declares none of the listed core terms. |
 
 ## Negative and boundary cases
 
