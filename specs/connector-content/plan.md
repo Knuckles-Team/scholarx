@@ -16,7 +16,7 @@ This plan states how `scholarx` delivers the rows of `CONN-SCHOLARX-CONNECTOR-CO
 - **Project Type**: connector
 - **Performance Goals**: N/A, the vendor service sets the latency
 - **Constraints**: vendor calls go through the SDK governed client; no connector-local transport
-- **Scale/Scope**: 3 active row(s) in this spec
+- **Scale/Scope**: 4 active row(s) in this spec
 
 ## Constitution Check
 
@@ -61,6 +61,7 @@ None. The constitution check passed.
 - `CONN-SCHOLARX-CONNECTOR-CONTENT-R002`: an MCP client calls the `sx_search` tool in `scholarx/mcp_server.py` with action `citations`, which asks the provider client for the papers that cite the given id.
 - `CONN-SCHOLARX-CONNECTOR-CONTENT-R001`: `scholarx` in `pyproject.toml` runs `scholarx.cli:cli`, which builds the server from the `scion_sdk.connector` entry point `scholarx:connector` (`scholarx/__init__.py:86`); the SDK `Connector` then lists the packaged skills, ontology and prompts.
 - `CONN-SCHOLARX-CONNECTOR-CONTENT-R003`: process start runs `scholarx/mcp_server.py`, which calls `register_paper_search_tool`, `register_paper_download_tool` and `register_paper_provider_stream` with one `ProviderBinding` per provider.
+- `CONN-SCHOLARX-CONNECTOR-CONTENT-R004`: the ontology loader reads `scholarx/ontology/` at server start; the engine imports the served pack and finds no redeclared core term.
 
 ## Cross-repo seams
 

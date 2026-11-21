@@ -38,6 +38,14 @@ The fleet operator and the engine rely on this behaviour of `scholarx`: Subsyste
 
 1. **Given** the `scholarx` connector built from the default branch, **When** `tests/test_paper_tools_served.py::test_registered_tools_search_and_stream` runs, **Then** test: `tests/test_paper_tools_served.py::test_registered_tools_search_and_stream` (L3) calls the three tools through `tools/call` against controlled provider servers.
 
+### User Story 4 - The pack extends only the core ontology (Priority: P1)
+
+The fleet operator and the engine rely on this behaviour of ``: its pack adds terms under the core ontology and declares no second copy of a core term. It is proven independently of the other stories.
+
+**Acceptance Scenarios**:
+
+1. **Given** the `` connector built from the default branch, **When** `tests/test_ontology_extends_core.py::test_pack_declares_no_core_term` runs, **Then** the served Turtle declares none of the listed core terms.
+
 ### Edge Cases
 
 - The vendor service is unreachable or rejects the credential: the connector returns the SDK typed error and never a partial result.
@@ -48,12 +56,14 @@ The fleet operator and the engine rely on this behaviour of `scholarx`: Subsyste
 - **FR-001**: Citing-papers operation: sx_search action citations. Rows: `CONN-SCHOLARX-CONNECTOR-CONTENT-R002`.
 - **FR-002**: Default content. Rows: `CONN-SCHOLARX-CONNECTOR-CONTENT-R001`.
 - **FR-003**: Register the SDK paper tools and provider streams. Rows: `CONN-SCHOLARX-CONNECTOR-CONTENT-R003`.
+- **FR-004**: The pack extends only the core ontology. Rows: `CONN-SCHOLARX-CONNECTOR-CONTENT-R004`.
 
 ## Success Criteria
 
 - **SC-001**: Test: the action returns the documented fields. Rows: `CONN-SCHOLARX-CONNECTOR-CONTENT-R002`.
 - **SC-002**: `resources/list` includes `skill://` and `ontology://`; `prompts/list` includes each packaged prompt. Rows: `CONN-SCHOLARX-CONNECTOR-CONTENT-R001`.
 - **SC-003**: Test: `tests/test_paper_tools_served.py::test_registered_tools_search_and_stream` (L3) calls the three tools through `tools/call` against controlled provider servers. Rows: `CONN-SCHOLARX-CONNECTOR-CONTENT-R003`.
+- **SC-004**: The served Turtle declares none of the listed core terms. Rows: `CONN-SCHOLARX-CONNECTOR-CONTENT-R004`.
 
 ## Assumptions
 
@@ -71,3 +81,4 @@ Searched `specs/` of `scholarx` with `git grep` for the terms of this spec. No o
 | FR-001 | `CONN-SCHOLARX-CONNECTOR-CONTENT-R002` | plan.md Production caller chain | T-001 | tests/test_citing_papers.py::test_sx_search_citations_returns_documented_fields |
 | FR-002 | `CONN-SCHOLARX-CONNECTOR-CONTENT-R001` | plan.md Production caller chain | T-002 | tests/test_default_content_surfaces.py::test_default_content_surfaces |
 | FR-003 | `CONN-SCHOLARX-CONNECTOR-CONTENT-R003` | plan.md Production caller chain | T-003 | tests/test_paper_tools_served.py::test_registered_tools_search_and_stream |
+| FR-004 | `CONN-SCHOLARX-CONNECTOR-CONTENT-R004` | plan.md Production caller chain | T-004 | tests/test_ontology_extends_core.py::test_pack_declares_no_core_term |
