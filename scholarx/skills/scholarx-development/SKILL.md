@@ -64,6 +64,22 @@ spec, tests-fast, and dependency-readiness checks to `Knuckles-Team/pipelines`
 at `rev: main`. Do not replace those shared hooks with local copies or bypass a
 failing check.
 
+## Steps
+
+1. Find the owning spec row by running `git grep -n "<term>" -- specs`. Verify one row owns the behavior you will change.
+2. Make the smallest connector-owned change, reusing `ScholarXClient` and the SDK tool surface. Verify `git diff --stat` shows only intended files.
+3. Run the focused tests with `uv run --all-extras pytest tests/test_operation_tools.py -q`. Verify the run ends with all tests passed.
+4. Run the shared gate with `uvx pre-commit run --all-files`. Verify every hook reports Passed.
+5. Stage reviewed paths with `git add -- <path>` and check `git diff --cached --name-status`. Verify only intended files are listed and the commit carries the `Spec:` trailer.
+
+## Failure recovery
+
+| Failure | Cause | Recovery |
+|---------|-------|----------|
+| Test calls a live provider | A provider response was not mocked | Replace the call with a mocked arXiv, PMC, bioRxiv, OSF or Semantic Scholar response in the test |
+| Pre-commit hook fails | Formatting, spelling or spec finding | Read the hook output, fix the flagged file, and re-stage the exact path |
+| No spec row matches | Behavior is not yet specified | Extend the closest row under `specs/` first, then re-run the `git grep` search |
+
 ## Connector-specific checks
 
 - Keep provider fan-out, rate limiting, deduplication, storage, and MCP tool

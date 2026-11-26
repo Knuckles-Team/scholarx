@@ -19,6 +19,21 @@ Use the provider's governed MCP tools through Arbora delegation.
 5. Ingest source data only through the signed connector preset and ChangeEnvelope path.
 6. Verify the durable result and its trace/evidence before reporting completion.
 
+## Steps
+
+1. Confirm the available sources by calling `sx_info_sources`. Verify the response lists the sources the request needs.
+2. Discover before acting by reading `references/catalog.md` and calling `sx_enabled_sources`. Verify every tool name you plan to use is present.
+3. Run a read-only lookup by calling `sx_search_search` with `query` and `max_results`. Verify the papers returned match the request.
+4. Persist results only after approval by calling `scholarx_ingest_papers` as a fenced WorkItem. Verify `ingested` is not `null` and the WorkItem id is recorded.
+
+## Failure recovery
+
+| Failure | Cause | Recovery |
+|---------|-------|----------|
+| Tool name or schema rejected | A stale tool name was assumed | Re-read `references/catalog.md` and `sx_enabled_sources`, and call the current name |
+| `ingested` is `null` | No engine reachable | Restore the engine connection and run `scholarx_ingest_papers` again as a new WorkItem |
+| Session or tenant missing | GraphSession not established | Stop, establish a verified GraphSession for the tenant, and restart from step 1 |
+
 ## Safety contract
 
 - Never persist credentials, endpoints, raw personal identifiers, hostnames, or local paths.
