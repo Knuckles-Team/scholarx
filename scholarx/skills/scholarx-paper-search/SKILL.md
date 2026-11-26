@@ -2,13 +2,7 @@
 name: scholarx-paper-search
 skill_type: skill
 description: >-
-  Federated research-paper search via the scholarx MCP server — one query
-  fanned out across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF and Semantic
-  Scholar, with cross-source deduplication. Use when the agent must find papers
-  by topic/keyword, look up one paper by source + id, list an author's papers,
-  or pull recent publications in a category. Do NOT use to download full PDFs or
-  manage the offline library (use scholarx-paper-library) or to push papers into
-  the knowledge graph (use scholarx-kg-ingestion).
+  Federated paper search via the scholarx MCP server: one query across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF and Semantic Scholar with deduplication. Use to find papers by topic, look up one paper by id, list an author's papers or pull recent ones. Not for PDFs (scholarx-paper-library) or KG ingest (scholarx-kg-ingestion).
 license: MIT
 tags: [scholarx, research, papers, arxiv, search, mcp]
 metadata:
@@ -16,6 +10,8 @@ metadata:
   version: '0.1.0'
 ---
 # ScholarX Paper Search
+
+Scope: Federated research-paper search via the scholarx MCP server — one query fanned out across arXiv, PMC, bioRxiv, medRxiv, PsyArXiv, OSF and Semantic Scholar, with cross-source deduplication. Use when the agent must find papers by topic/keyword, look up one paper by source + id, list an author's papers, or pull recent publications in a category. Do NOT use to download full PDFs or manage the offline library (use scholarx-paper-library) or to push papers into the knowledge graph (use scholarx-kg-ingestion).
 
 Federated discovery across every configured research source through one
 deduplicated tool surface. Prefer these tools over hitting arXiv/PMC/etc.
@@ -43,6 +39,22 @@ key is required for the default sources; optional keys raise rate limits.
 | `NCBI_API_KEY` | optional | Raises PMC/NCBI limit (3/s → 10/s) |
 | `S2_API_KEY` | optional | Semantic Scholar API key |
 | `OSF_TOKEN` | optional | OSF / PsyArXiv token |
+
+## Steps
+
+1. Check which sources are live by calling `sx_info_sources`. Verify each source you need reports as enabled.
+2. Search by topic by calling `sx_search_search` with `query`, `sources`, `max_results` and optionally `sort_by`. Verify the result lists papers and reports a `deduplicated_count`.
+3. Look up one paper by calling `sx_search_get` with a single `sources` value and `paper_id`. Verify the returned title and authors match the intended paper.
+4. For an author or recent sweep, call `sx_search_author` with `author`, or `sx_search_recent` with `categories` and `days`. Verify results fall in the requested window or author.
+5. Follow citations by calling `sx_search_citations` for the chosen paper. Verify the citing papers list is returned.
+
+## Failure recovery
+
+| Failure | Cause | Recovery |
+|---------|-------|----------|
+| `sx_search_get` returns an error | `sources` held several values or `paper_id` was missing | Pass exactly one source in `sources` and the source-native `paper_id` |
+| Search is slow or partly empty | arXiv rate limit or a source is down | Check `sx_info_sources`, narrow `sources`, or set `NCBI_API_KEY` or `S2_API_KEY` to raise limits |
+| Zero results | Query too narrow or category filter wrong | Broaden `query`, and list valid filters with `sx_info_categories` before retrying with a new `categories` value |
 
 ## Tools
 | Tool | Purpose |

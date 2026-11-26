@@ -2,14 +2,7 @@
 name: scholarx-paper-library
 skill_type: skill
 description: >-
-  Full-text PDF download and offline library management via the scholarx MCP
-  server — fetch a paper's PDF, bulk-queue downloads, download straight from an
-  arXiv id/URL, and list/stat the local store. Use when the agent needs the
-  actual PDF bytes of a paper (not just metadata) or must inspect what is already
-  stored. Each successful download is also stored as a durable :MediaAsset blob
-  in the knowledge graph. Do NOT use to search/discover papers (use
-  scholarx-paper-search) or to push typed paper nodes into the KG (use
-  scholarx-kg-ingestion).
+  Download full-text PDFs and manage the offline store via the scholarx MCP server: fetch a paper PDF, queue bulk downloads, download from an arXiv id or URL, and list stored papers. Use when the PDF itself is needed. Not for search (scholarx-paper-search) or typed KG ingest (scholarx-kg-ingestion).
 license: MIT
 tags: [scholarx, research, papers, pdf, storage, mcp]
 metadata:
@@ -17,6 +10,8 @@ metadata:
   version: '0.1.0'
 ---
 # ScholarX Paper Library
+
+Scope: Full-text PDF download and offline library management via the scholarx MCP server — fetch a paper's PDF, bulk-queue downloads, download straight from an arXiv id/URL, and list/stat the local store. Use when the agent needs the actual PDF bytes of a paper (not just metadata) or must inspect what is already stored. Each successful download is also stored as a durable :MediaAsset blob in the knowledge graph. Do NOT use to search/discover papers (use scholarx-paper-search) or to push typed paper nodes into the KG (use scholarx-kg-ingestion).
 
 Download full-text PDFs and manage the local offline store. Slow/large downloads
 that exceed the inline budget are handed to a background queue and polled by
@@ -41,6 +36,22 @@ ingestion no-ops when no medulla engine is reachable.
 
 | Variable | Required | Notes |
 |----------|----------|-------|
+
+## Steps
+
+1. Check what is already stored by calling `sx_storage_stored`. Verify the paper you need is not listed, to avoid a redundant download.
+2. Download one paper by calling `sx_storage_download` with `source` and `paper_ids`, or `sx_storage_download_url` for arXiv ids and URLs. Verify the response `status` is a completed download or `already_exists`.
+3. For many papers, call `sx_storage_bulk_download` with `source` and `paper_ids`. Verify the response returns a `job_id`.
+4. Poll a queued job by calling `sx_storage_status` with `job_id`. Verify the status reaches completed, or inspect all jobs with `sx_storage_queue`.
+5. Confirm the PDFs landed by calling `sx_storage_stored` again. Verify the storage statistics count increased.
+
+## Failure recovery
+
+| Failure | Cause | Recovery |
+|---------|-------|----------|
+| Response has `status` queued | Download exceeded the inline time budget | Poll `sx_storage_status` with the returned `job_id` until it completes |
+| `sx_storage_download_url` rejects an id | The tool is arXiv-only | Use `sx_storage_download` with the right `source` and `paper_ids` instead |
+| Job status shows failed | Source unreachable or paper has no open PDF | Check the source with `sx_info_sources`, then re-queue with `sx_storage_bulk_download` for a different `source` if available |
 
 ## Tools
 | Tool | Purpose |

@@ -2,13 +2,7 @@
 name: scholarx-kg-ingestion
 skill_type: skill
 description: >-
-  Native medulla ingestion of research papers via the scholarx MCP
-  server — fetch papers and push them into the knowledge graph as typed :Paper
-  nodes with their :PaperSource, :ResearchCategory and :Person (author) nodes and
-  links, plus full-text PDFs as :MediaAsset blobs. Use when the agent must
-  persist papers into the KG for later graph/semantic queries or build a research
-  corpus. Do NOT use for plain search/metadata lookups (use scholarx-paper-search)
-  or for downloading PDFs to disk without KG persistence (use scholarx-paper-library).
+  Ingest research papers into the knowledge graph via the scholarx MCP server as typed :Paper nodes with sources, categories and authors, plus PDF blobs. Use to persist papers for graph or semantic queries or build a research corpus. Not for plain search (scholarx-paper-search) or PDF download only (scholarx-paper-library).
 license: MIT
 tags: [scholarx, research, knowledge-graph, ingestion, ontology, mcp]
 metadata:
@@ -16,6 +10,8 @@ metadata:
   version: '0.1.0'
 ---
 # ScholarX Knowledge-Graph Ingestion
+
+Scope: Native medulla ingestion of research papers via the scholarx MCP server — fetch papers and push them into the knowledge graph as typed :Paper nodes with their :PaperSource, :ResearchCategory and :Person (author) nodes and links, plus full-text PDFs as :MediaAsset blobs. Use when the agent must persist papers into the KG for later graph/semantic queries or build a research corpus. Do NOT use for plain search/metadata lookups (use scholarx-paper-search) or for downloading PDFs to disk without KG persistence (use scholarx-paper-library).
 
 Push fetched papers natively into the ONE medulla as typed OWL nodes. A
 `:Paper` carries its abstract as searchable `text` (the document modality), links
@@ -41,6 +37,21 @@ fast client); with no engine present every ingestion path silently no-ops.
 | Variable | Required | Notes |
 |----------|----------|-------|
 | `NCBI_API_KEY` / `S2_API_KEY` / `OSF_TOKEN` | optional | Raise per-source fetch limits |
+
+## Steps
+
+1. Preview the corpus first by calling `sx_search_search` with the intended `query` and `sources`. Verify the results are the papers you want persisted.
+2. Ingest by calling `scholarx_ingest_papers` with `query`, `sources`, `categories` and `max_results`. Verify the response contains an `ingested` value.
+3. Check the outcome by reading `ingested`. Verify it reports node and edge counts rather than `null`.
+4. Attach full text by calling `sx_storage_download` with `source` and `paper_ids` for chosen papers. Verify the status is completed, which links a `:MediaAsset` via `:hasFullText`.
+
+## Failure recovery
+
+| Failure | Cause | Recovery |
+|---------|-------|----------|
+| `ingested` is `null` | No medulla engine was reachable, so the tool no-opped | Restore the engine connection, then call `scholarx_ingest_papers` again with the same `query` (ids are stable, so it merges) |
+| Zero papers ingested | `query` or `categories` matched nothing | Test the same `query` with `sx_search_search`, broaden it, and re-run ingest |
+| Fetch limits hit | Provider rate limits without keys | Set `NCBI_API_KEY`, `S2_API_KEY` or `OSF_TOKEN` and lower `max_results` |
 
 ## Tools
 | Tool | Purpose |
